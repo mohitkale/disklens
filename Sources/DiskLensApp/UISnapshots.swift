@@ -8,7 +8,7 @@ enum UISnapshots {
 
     static func capture(_ model: AppModel) async {
         guard let directory, let window = NSApp.windows.first(where: { $0.isVisible && $0.contentView != nil }) else { return }
-        window.setContentSize(NSSize(width: 1320, height: 1400))
+        window.setContentSize(DemoData.isEnabled ? NSSize(width: 1360, height: 900) : NSSize(width: 1320, height: 1400))
         func shot(_ name: String, _ target: NSWindow = window) {
             guard let image = windowImage(CGWindowID(target.windowNumber)) else { return }
             try? NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])?
@@ -18,6 +18,7 @@ enum UISnapshots {
         if model.needsFirstScan {
             try? await Task.sleep(for: .seconds(2))
             shot("welcome")
+            if DemoData.isEnabled { NSApp.terminate(nil); return }
             await model.scan()
         }
         for section in AppSection.allCases {
@@ -47,6 +48,7 @@ enum UISnapshots {
         model.dismissPlan()
         model.section = .overview
         FileHandle.standardError.write(Data("snapshots written to \(directory)\n".utf8))
+        if DemoData.isEnabled { NSApp.terminate(nil) }
     }
 
     /// CGWindowListCreateImage is hidden from the macOS 15+ SDK but still works for an app's own windows.

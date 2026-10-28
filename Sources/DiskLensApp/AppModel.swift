@@ -123,6 +123,15 @@ final class AppModel {
     private let store = HistoryStore()
 
     init() {
+        if DemoData.isEnabled {
+            snapshots = DemoData.snapshots
+            log = DemoData.log
+            findings = DemoData.findings
+            findingsDate = snapshots.last?.date
+            hasFullDiskAccess = true
+            resetSelections()
+            return
+        }
         snapshots = store.loadSnapshots()
         log = store.loadLog()
         if let cached = store.loadFindings() {
@@ -157,7 +166,7 @@ final class AppModel {
     // MARK: Full scan
 
     func scan() async {
-        guard !isBusy else { return }
+        guard !isBusy, !DemoData.isEnabled else { return }
         isScanning = true
         progress = "Starting"
         hasFullDiskAccess = DiskMeasure.hasFullDiskAccess()
@@ -308,6 +317,14 @@ final class AppModel {
     /// Quick Scan, then show what Quick Clean would do. Nothing is cleaned until confirmed.
     func quickClean() async {
         guard !isBusy else { return }
+        if DemoData.isEnabled {
+            let quick = findings.filter { $0.quickClean && $0.action.isExecutable }
+            plan = CleanupPlan(kind: .quick, phase: .review,
+                               entries: quick.map { PlanEntry(finding: $0, items: $0.items.filter(\.quickSafe)) },
+                               advice: findings.filter { $0.id == "temp" })
+            await preflightPlan()
+            return
+        }
         isQuickScanning = true
         plan = CleanupPlan(kind: .quick, phase: .scanning)
         let result = await Scanner.quickScan(runningBundleIDs: runningBundleIDs, profile: profile) { message in
@@ -325,6 +342,11 @@ final class AppModel {
 
     private func preflightPlan() async {
         guard let entries = plan?.entries else { return }
+        // Demo data isn't on disk, so it skips the real checks (and never reveals what's running on this Mac).
+        if DemoData.isEnabled {
+            for i in entries.indices { plan?.entries[i].status = .ready }
+            return
+        }
         let apps = runningApps
         for entry in entries {
             let problems = await Executor.problems(for: entry.finding, selected: entry.items, runningApps: apps)
@@ -496,6 +518,7 @@ final class AppModel {
     }
 
     func refreshAccess() {
+        guard !DemoData.isEnabled else { return }
         hasFullDiskAccess = DiskMeasure.hasFullDiskAccess()
     }
 
