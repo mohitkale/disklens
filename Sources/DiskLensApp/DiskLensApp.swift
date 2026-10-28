@@ -122,7 +122,10 @@ struct ContentView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     Label("Limited access", systemImage: "lock.fill").font(.caption.weight(.semibold)).foregroundStyle(Theme.review)
                     Text("Grant Full Disk Access to measure the Trash, iPhone backups and Mail.")
-                        .font(.caption2).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                        .font(.caption2).foregroundStyle(.secondary)
+                        // Not fixedSize: measured at minimum width it became very tall and forced the
+                        // whole window's layout taller than the window, so short windows couldn't scroll to the end.
+                        .lineLimit(4)
                     Button("Open Settings") { model.openFullDiskAccessSettings() }
                         .buttonStyle(SoftButtonStyle(tint: Theme.review))
                         .help("Opens System Settings → Privacy & Security → Full Disk Access. Turn on DiskLens there, then come back.")

@@ -6,7 +6,10 @@ import AppKit
 enum UISnapshots {
     static var directory: String? { ProcessInfo.processInfo.environment["DISKLENS_SNAPSHOT_DIR"] }
 
+    static func windowImagePublic(_ id: CGWindowID) -> CGImage? { windowImage(id) }
+
     static func capture(_ model: AppModel) async {
+        if ScrollDiagnostics.enabled { await ScrollDiagnostics.run(model); return }
         guard let directory, let window = NSApp.windows.first(where: { $0.isVisible && $0.contentView != nil }) else { return }
         window.setContentSize(DemoData.isEnabled ? NSSize(width: 1360, height: 900) : NSSize(width: 1320, height: 1400))
         func shot(_ name: String, _ target: NSWindow = window) {
