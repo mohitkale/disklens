@@ -7,7 +7,8 @@ struct HistoryView: View {
     @Environment(AppModel.self) private var model
     @State private var fromID: Date?
     @State private var toID: Date?
-    @State private var hoverDate: Date?
+    // Demo screenshots show the tooltip on the first (left-edge) point.
+    @State private var hoverDate: Date? = DemoData.isEnabled ? DemoData.snapshots.first?.date : nil
 
     var body: some View {
         ScrollView {
@@ -77,7 +78,12 @@ struct HistoryView: View {
                     RuleMark(x: .value("Date", h.date))
                         .foregroundStyle(.secondary.opacity(0.5))
                         .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
-                        .annotation(position: .top, spacing: 4, overflowResolution: .init(x: .fit(to: .chart), y: .disabled)) {
+                    // Anchored halfway between the two lines and kept inside the plot,
+                    // so it never covers the legend, title or the lines' points.
+                    PointMark(x: .value("Date", h.date), y: .value("GB", (ByteFormat.gb(h.free) + ByteFormat.gb(h.used)) / 2))
+                        .symbolSize(0)
+                        .annotation(position: .overlay, alignment: .center, spacing: 0,
+                                    overflowResolution: .init(x: .fit(to: .plot), y: .fit(to: .plot))) {
                             VStack(alignment: .leading, spacing: 3) {
                                 Text(h.date.friendly).font(.caption.weight(.semibold))
                                 if let label = h.label { Text(label).font(.caption2).foregroundStyle(.secondary) }
@@ -90,6 +96,8 @@ struct HistoryView: View {
                             .padding(8)
                             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
                             .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(.separator))
+                            .shadow(color: .black.opacity(0.08), radius: 6, y: 2)
+                            .fixedSize()
                         }
                 }
             }
