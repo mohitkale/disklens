@@ -46,6 +46,7 @@
 | **Clean Up** | Filter by Safe / Review first / Leave alone, use **Select all**, open each item's details (*what depends on this*), then **Review Selected…** → **Clean**. |
 | **Privacy Shield** | Finds photos, videos, PDFs and Office files that reveal **where they were taken** (GPS), **which device made them** (model and serial numbers) or **your name**, and shows places your files point to, such as home. It removes that information without re-compressing photos, and keeps their orientation and date. Originals go to the Trash, or you can keep them and save clean copies. |
 | **Duplicates** | Identical files (compared byte for byte, not by name) across your home folder, with a suggested copy to keep. APFS clones are detected, so you're never promised space you won't get. |
+| **Media Studio** | **Events → Video:** photos and clips are grouped into events by date and place (from a folder or your Photos library), then turned into one 1080p video with an opening title, gentle zoom-and-pan on photos, crossfades, and optional music (ducked under clip sound), in landscape, portrait or square. Then optionally **free up space**: originals go to the Trash or Recently Deleted, after you confirm. **Collage:** grid or album rows in 1:1, 4:5, 9:16, 4:3 or 16:9. **Convert & Resize:** HEIC/JPEG/PNG/TIFF; longest side, percentage, crop to a shape, or "under 1 MB"; videos to HEVC/H.264 at 4K–540p, or GIF. Location is removed by default. |
 | **Insights** | Free-space trend and forecast, biggest safe win, projects untouched for 6+ months, simulators last used months ago, apps you haven't opened, space hidden by macOS privacy. |
 | **Explore** | Browse any folder by size, filter by name, or search every subfolder with Spotlight. Show in Finder or copy the path. |
 | **History** | An interactive free/used trend chart, free space per scan, a before/after comparison of any two scans, and a cleanup log. |
@@ -68,12 +69,20 @@
     <td><b>Remove info safely</b>: location only, or everything that identifies you<br><img src="docs/screenshots/privacy-sheet.png" alt="Privacy Shield clean options"></td>
   </tr>
   <tr>
-    <td><b>Duplicates</b>: identical files, with a suggested copy to keep<br><img src="docs/screenshots/duplicates.png" alt="Duplicates"></td>
     <td><b>Quick Clean</b>: caches, logs and leftovers that nothing depends on<br><img src="docs/screenshots/quick-clean-sheet.png" alt="Quick Clean"></td>
+    <td><b>Explore</b>: browse any folder by size, or search all subfolders<br><img src="docs/screenshots/explore.png" alt="Explore"></td>
+  </tr>
+  <tr>
+    <td><b>Media Studio: Events → Video</b>: one video per birthday, trip or outing<br><img src="docs/screenshots/media.png" alt="Events to video"></td>
+    <td><b>Collage</b>: grid or album rows, in any shape<br><img src="docs/screenshots/media-collage.png" alt="Collage"></td>
+  </tr>
+  <tr>
+    <td><b>Convert & Resize</b>: formats, sizes, "under 1 MB", video to HEVC or GIF<br><img src="docs/screenshots/media-convert.png" alt="Convert and resize"></td>
+    <td><b>Duplicates</b>: identical files, with a suggested copy to keep<br><img src="docs/screenshots/duplicates.png" alt="Duplicates"></td>
   </tr>
   <tr>
     <td><b>History</b>: free and used space over time, with a reading for any scan<br><img src="docs/screenshots/history.png" alt="History"></td>
-    <td><b>Explore</b>: browse any folder by size, or search all subfolders<br><img src="docs/screenshots/explore.png" alt="Explore"></td>
+    <td><b>First run</b>: a full scan is recommended before anything else<br><img src="docs/screenshots/welcome.png" alt="Welcome"></td>
   </tr>
 </table>
 

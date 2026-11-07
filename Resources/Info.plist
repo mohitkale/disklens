@@ -10,11 +10,12 @@
 	<key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
 	<key>CFBundleName</key><string>DiskLens</string>
 	<key>CFBundlePackageType</key><string>APPL</string>
-	<key>CFBundleShortVersionString</key><string>1.1.0</string>
-	<key>CFBundleVersion</key><string>3</string>
+	<key>CFBundleShortVersionString</key><string>1.2.0</string>
+	<key>CFBundleVersion</key><string>4</string>
 	<key>LSApplicationCategoryType</key><string>public.app-category.utilities</string>
 	<key>LSMinimumSystemVersion</key><string>14.0</string>
 	<key>NSHighResolutionCapable</key><true/>
+	<key>NSPhotoLibraryUsageDescription</key><string>DiskLens groups your photos and videos into events so you can turn them into a video or collage. Everything stays on this Mac. Nothing is changed or deleted without your confirmation.</string>
 	<key>NSHumanReadableCopyright</key><string>Copyright © 2026 Mohit Kale</string>
 </dict>
 </plist>

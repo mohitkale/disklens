@@ -4,7 +4,7 @@ import Observation
 import SwiftUI
 
 enum AppSection: String, CaseIterable, Identifiable {
-    case overview, cleanup, duplicates, privacy, explore, history
+    case overview, cleanup, duplicates, privacy, media, explore, history
     var id: Self { self }
 
     var title: String {
@@ -13,6 +13,7 @@ enum AppSection: String, CaseIterable, Identifiable {
         case .cleanup: "Clean Up"
         case .duplicates: "Duplicates"
         case .privacy: "Privacy Shield"
+        case .media: "Media Studio"
         case .explore: "Explore"
         case .history: "History"
         }
@@ -24,6 +25,7 @@ enum AppSection: String, CaseIterable, Identifiable {
         case .cleanup: "sparkles"
         case .duplicates: "doc.on.doc"
         case .privacy: "hand.raised"
+        case .media: "film.stack"
         case .explore: "folder"
         case .history: "clock.arrow.circlepath"
         }
@@ -135,6 +137,28 @@ final class AppModel {
     var privacyFilter: PrivacyFilter = .all
     var privacyJob: PrivacyJob?
 
+    // MARK: Media Studio state (logic in AppModel+Media.swift)
+    var mediaTool: MediaTool = .events
+    var mediaItems: [MediaItem] = []
+    var mediaSourceLabel: String?
+    var isLoadingMedia = false
+    var eventGapHours: Double = 4
+    var events: [MediaEvent] = []
+    var selectedEventID: String?
+    var excludedMedia: Set<String> = []
+    var videoOptions = VideoOptions()
+    var videoJob: VideoJob?
+    var collageItems: [MediaItem] = []
+    var collageOptions = CollageOptions()
+    var collagePreview: CGImage?
+    var convertFiles: [String] = []
+    var imageOptions = ImageConvertOptions()
+    var videoPreset: MediaConverter.VideoPreset = .hevc1080
+    var makeGIF = false
+    var convertFolder = URL(fileURLWithPath: NSHomeDirectory() + "/Downloads/DiskLens Converted")
+    var convertResults: [ConvertResult] = []
+    var convertProgress: (done: Int, total: Int)?
+
     // MARK: Duplicates state (logic in AppModel+Duplicates.swift)
     var duplicateGroups: [DuplicateGroup] = []
     var duplicatesScanned: Date?
@@ -156,6 +180,17 @@ final class AppModel {
             duplicateGroups = DemoData.duplicateGroups
             duplicatesScanned = duplicateGroups.isEmpty ? nil : Date()
             selectSuggestedDuplicates()
+            mediaItems = DemoData.mediaItems
+            mediaSourceLabel = mediaItems.isEmpty ? nil : "Photos library"
+            events = EventGrouper.group(mediaItems)
+            if let first = events.first {
+                selectEvent(first)
+                excludedMedia = Set(first.items.suffix(3).map(\.id))
+                collageItems = Array(first.items.filter { $0.kind == .photo }.prefix(7))
+            }
+            convertFiles = mediaItems.isEmpty ? [] : ["Pictures/Birthday/IMG_2210.heic", "Pictures/Birthday/IMG_2214.heic", "Movies/party-clip.mov"].map { NSHomeDirectory() + "/" + $0 }
+            imageOptions.resize = .longestSide(2048)
+            imageOptions.maxBytes = 1_000_000
             return
         }
         snapshots = store.loadSnapshots()

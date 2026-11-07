@@ -60,6 +60,7 @@ struct ContentView: View {
             case .cleanup: CleanupView()
             case .duplicates: DuplicatesView()
             case .privacy: PrivacyView()
+            case .media: MediaView()
             case .explore: ExploreView()
             case .history: HistoryView()
             }
@@ -81,6 +82,7 @@ struct ContentView: View {
         case .cleanup: "Everything that can be cleaned, with what depends on it. Safe total shown on the right."
         case .duplicates: "Find identical files and keep one copy of each"
         case .privacy: "See what your photos, videos and documents reveal (location, device, names) and remove it"
+        case .media: "Turn events into videos, make collages, convert and resize photos and videos"
         case .explore: "Browse and search folders by size"
         case .history: "Free space over time, before/after comparisons and the cleanup log"
         }

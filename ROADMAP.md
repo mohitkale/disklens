@@ -7,6 +7,7 @@ Have an idea or want something sooner? [Open an issue](https://github.com/mohitk
 ## Done
 
 - **1.0**: full scan, Quick Scan / Quick Clean, Safe / Review first / Leave alone, dependency details for every item, the review sheet with safety checks, Explore with Spotlight search, History with trends, a universal app.
+- **1.2**: **Media Studio**: events → video (title, zoom-and-pan, crossfades, music, free up space afterwards), collages, and converting and resizing photos and videos (formats, sizes, target file size, GIF).
 - **1.1**: **Privacy Shield** (what files reveal: GPS location, device and serial numbers, names; places your files point to; lossless removal with originals in the Trash) and **Duplicates** (content-based, detects APFS clones, suggests the copy to keep).
 
 ## Next
@@ -24,9 +25,10 @@ Have an idea or want something sooner? [Open an issue](https://github.com/mohitk
 
 ### Media (shared with the iPhone app)
 - [ ] Similar photos (not just identical), blurry photos and burst cleanup in folders and the Photos library
-- [ ] Converter and resizer: HEIC↔JPEG/PNG, video to HEVC/H.264/GIF, by resolution, aspect ratio or target file size
-- [ ] Video compressor that keeps quality you can't tell apart
-- [ ] Event videos and collages: group photos by time and place, then build a video with music and titles
+- [x] Converter and resizer, event videos and collages (1.2)
+- [ ] Video trimming and reordering before building an event video
+- [ ] Bundled royalty-free music tracks
+- [ ] Batch photo enhancement (exposure, colour, noise), with a before/after slider
 
 ### Distribution
 - [ ] Notarized releases (no first-launch warning)

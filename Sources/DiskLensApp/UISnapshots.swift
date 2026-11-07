@@ -10,7 +10,19 @@ enum UISnapshots {
 
     static func capture(_ model: AppModel) async {
         if ScrollDiagnostics.enabled { await ScrollDiagnostics.run(model); return }
-        guard let directory, let window = NSApp.windows.first(where: { $0.isVisible && $0.contentView != nil }) else { return }
+        guard let directory else { return }
+        // The window can appear a moment after launch; wait for it rather than silently giving up.
+        var found: NSWindow?
+        for _ in 0..<40 {
+            found = NSApp.windows.first { $0.isVisible && $0.contentView != nil }
+            if found != nil { break }
+            try? await Task.sleep(for: .milliseconds(250))
+        }
+        guard let window = found else {
+            FileHandle.standardError.write(Data("snapshot failed: no visible window\n".utf8))
+            NSApp.terminate(nil)
+            return
+        }
         window.setContentSize(DemoData.isEnabled ? NSSize(width: 1360, height: 900) : NSSize(width: 1320, height: 1400))
         func shot(_ name: String, _ target: NSWindow = window) {
             guard let image = windowImage(CGWindowID(target.windowNumber)) else { return }
@@ -46,6 +58,15 @@ enum UISnapshots {
         try? await Task.sleep(for: .seconds(1))
 
         if DemoData.isEnabled {
+            model.section = .media
+            model.mediaTool = .collage
+            await model.refreshCollagePreview()
+            try? await Task.sleep(for: .seconds(2))
+            shot("media-collage")
+            model.mediaTool = .convert
+            try? await Task.sleep(for: .seconds(2))
+            shot("media-convert")
+            model.mediaTool = .events
             model.section = .privacy
             model.startPrivacyClean()
             try? await Task.sleep(for: .seconds(2))

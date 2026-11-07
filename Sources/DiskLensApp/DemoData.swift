@@ -1,3 +1,4 @@
+import AppKit
 import DiskLensCore
 import Foundation
 
@@ -74,6 +75,43 @@ enum DemoData {
             DuplicateFinder.group(hash: "c3", files: [f("Documents/Taxes/2025-return.pdf", 14 * mb, 210), f("Downloads/2025-return.pdf", 14 * mb, 209), f("Desktop/2025-return copy.pdf", 14 * mb, 100)]),
             DuplicateFinder.group(hash: "d4", files: [f("Pictures/Trips/Iceland.zip", 920 * mb, 500), f("Downloads/Iceland.zip", 920 * mb, 480)]),
         ].sorted { $0.reclaimable > $1.reclaimable }
+    }
+
+    /// Sample events (with generated swatches as "photos") for Media Studio screenshots.
+    static var mediaItems: [MediaItem] {
+        guard !isWelcome else { return [] }
+        var items: [MediaItem] = []
+        func add(_ name: String, count: Int, start: Double, videos: Int = 0) {
+            for i in 0..<count {
+                let video = i < videos
+                items.append(MediaItem(origin: .file(p("Pictures/\(name)/\(i).\(video ? "mov" : "heic")")), kind: video ? .video : .photo,
+                                       date: ago(days: start).addingTimeInterval(Double(i) * 420), duration: video ? Double(14 + i * 7) : 0,
+                                       bytes: video ? 120_000_000 : 3_200_000))
+            }
+        }
+        add("Birthday", count: 46, start: 12, videos: 4)
+        add("Beach", count: 31, start: 40, videos: 3)
+        add("Graduation", count: 58, start: 95, videos: 2)
+        add("Hiking", count: 24, start: 150, videos: 1)
+        add("Wedding", count: 88, start: 220, videos: 6)
+        return items
+    }
+
+    /// A soft gradient "photo" for an item, so demo screenshots never show real images.
+    static func swatch(for id: String, size: Int) -> CGImage? {
+        var h: UInt64 = 1469598103934665603
+        for b in id.utf8 { h = (h ^ UInt64(b)) &* 1099511628211 }
+        let hue = Double(h % 360) / 360, hue2 = Double((h >> 9) % 360) / 360
+        let w = size, ht = size * 3 / 4
+        guard let ctx = CGContext(data: nil, width: w, height: ht, bitsPerComponent: 8, bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(),
+                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+        let a = NSColor(hue: hue, saturation: 0.45, brightness: 0.95, alpha: 1).cgColor
+        let b = NSColor(hue: hue2, saturation: 0.55, brightness: 0.7, alpha: 1).cgColor
+        let g = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: [a, b] as CFArray, locations: [0, 1])!
+        ctx.drawLinearGradient(g, start: .zero, end: CGPoint(x: w, y: ht), options: [])
+        ctx.setFillColor(NSColor(white: 1, alpha: 0.25).cgColor)
+        ctx.fillEllipse(in: CGRect(x: w / 5, y: ht / 4, width: w / 3, height: w / 3))
+        return ctx.makeImage()
     }
 
     static var log: [LogEntry] {
