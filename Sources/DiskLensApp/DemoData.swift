@@ -44,6 +44,38 @@ enum DemoData {
         ]
     }
 
+    static var privacyReports: [MetadataReport] {
+        guard !isWelcome else { return [] }
+        let homeSpot = Coordinate(latitude: 37.3349, longitude: -122.0090)
+        func photo(_ i: Int, _ c: Coordinate?, days: Double, device: String = "Apple iPhone 15 Pro", serial: Bool = false) -> MetadataReport {
+            MetadataReport(path: p("Pictures/Exports/IMG_\(4100 + i).HEIC"), kind: .image, bytes: Int64(2_400_000 + i * 37_000),
+                           coordinate: c.map { Coordinate(latitude: $0.latitude + Double(i % 5) * 0.0001, longitude: $0.longitude) },
+                           device: device, serials: serial ? ["F2LXK8Q9H1"] : [], captured: ago(days: days))
+        }
+        var list = (0..<18).map { photo($0, homeSpot, days: Double($0 * 9 + 2)) }
+        list += (0..<6).map { photo(20 + $0, Coordinate(latitude: 48.8584, longitude: 2.2945), days: 120) }
+        list += (0..<4).map { photo(30 + $0, nil, days: 40, device: "Canon EOS R6", serial: true) }
+        list.append(MetadataReport(path: p("Movies/beach-day.mov"), kind: .video, bytes: 184_000_000,
+                                   coordinate: Coordinate(latitude: 36.9741, longitude: -122.0308), device: "Apple iPhone 15 Pro", captured: ago(days: 60)))
+        list.append(MetadataReport(path: p("Documents/Resume-2026.pdf"), kind: .pdf, bytes: 240_000, people: ["Alex Morgan"], software: "Pages"))
+        list.append(MetadataReport(path: p("Documents/Q3 Budget.xlsx"), kind: .office, bytes: 88_000, people: ["Alex Morgan", "Acme Inc"], software: "Microsoft Excel"))
+        list.append(MetadataReport(path: p("Downloads/lease-signed.pdf"), kind: .pdf, bytes: 1_200_000, people: ["Alex Morgan"]))
+        return list
+    }
+
+    static var duplicateGroups: [DuplicateGroup] {
+        guard !isWelcome else { return [] }
+        func f(_ path: String, _ bytes: Int64, _ days: Double) -> DuplicateFile {
+            DuplicateFile(path: p(path), bytes: bytes, modified: ago(days: days), created: ago(days: days))
+        }
+        return [
+            DuplicateFinder.group(hash: "a1", files: [f("Movies/Wedding/ceremony.mp4", 2_800 * mb, 400), f("Downloads/ceremony.mp4", 2_800 * mb, 30), f("Desktop/ceremony (1).mp4", 2_800 * mb, 12)]),
+            DuplicateFinder.group(hash: "b2", files: [f("Documents/Installers/Xcode_16.xip", 3_100 * mb, 200), f("Downloads/Xcode_16.xip", 3_100 * mb, 199)]),
+            DuplicateFinder.group(hash: "c3", files: [f("Documents/Taxes/2025-return.pdf", 14 * mb, 210), f("Downloads/2025-return.pdf", 14 * mb, 209), f("Desktop/2025-return copy.pdf", 14 * mb, 100)]),
+            DuplicateFinder.group(hash: "d4", files: [f("Pictures/Trips/Iceland.zip", 920 * mb, 500), f("Downloads/Iceland.zip", 920 * mb, 480)]),
+        ].sorted { $0.reclaimable > $1.reclaimable }
+    }
+
     static var log: [LogEntry] {
         guard !isWelcome else { return [] }
         return [

@@ -4,13 +4,15 @@ import Observation
 import SwiftUI
 
 enum AppSection: String, CaseIterable, Identifiable {
-    case overview, cleanup, explore, history
+    case overview, cleanup, duplicates, privacy, explore, history
     var id: Self { self }
 
     var title: String {
         switch self {
         case .overview: "Overview"
         case .cleanup: "Clean Up"
+        case .duplicates: "Duplicates"
+        case .privacy: "Privacy Shield"
         case .explore: "Explore"
         case .history: "History"
         }
@@ -20,6 +22,8 @@ enum AppSection: String, CaseIterable, Identifiable {
         switch self {
         case .overview: "gauge.with.dots.needle.67percent"
         case .cleanup: "sparkles"
+        case .duplicates: "doc.on.doc"
+        case .privacy: "hand.raised"
         case .explore: "folder"
         case .history: "clock.arrow.circlepath"
         }
@@ -104,10 +108,10 @@ final class AppModel {
     private(set) var findingsDate: Date?
     var selections: [String: Set<String>] = [:]
     var selectedFindingIDs: Set<String> = []
-    private(set) var completed: [String: ExecutionResult] = [:]
+    var completed: [String: ExecutionResult] = [:]
     private(set) var isScanning = false
     private(set) var isQuickScanning = false
-    private(set) var progress = ""
+    var progress = ""
     private(set) var hasFullDiskAccess = DiskMeasure.hasFullDiskAccess()
     var plan: CleanupPlan?
     /// Which tier Clean Up shows (nil = all).
@@ -122,6 +126,22 @@ final class AppModel {
 
     private let store = HistoryStore()
 
+    // MARK: Privacy Shield state (logic in AppModel+Privacy.swift)
+    var privacyFolders: [String] = PrivacyScanner.defaultFolders
+    var privacyReports: [MetadataReport] = []
+    var privacyScanned: Date?
+    var privacyProgress: (done: Int, total: Int)?
+    var privacySelection: Set<String> = []
+    var privacyFilter: PrivacyFilter = .all
+    var privacyJob: PrivacyJob?
+
+    // MARK: Duplicates state (logic in AppModel+Duplicates.swift)
+    var duplicateGroups: [DuplicateGroup] = []
+    var duplicatesScanned: Date?
+    var isFindingDuplicates = false
+    var duplicateSelection: Set<String> = []
+    var duplicateRoots: [String] = DuplicateFinder.defaultRoots
+
     init() {
         if DemoData.isEnabled {
             snapshots = DemoData.snapshots
@@ -130,6 +150,12 @@ final class AppModel {
             findingsDate = snapshots.last?.date
             hasFullDiskAccess = true
             resetSelections()
+            privacyReports = DemoData.privacyReports
+            privacyScanned = snapshots.isEmpty ? nil : Date()
+            privacySelection = Set(privacyReports.filter(\.revealsLocation).map(\.path))
+            duplicateGroups = DemoData.duplicateGroups
+            duplicatesScanned = duplicateGroups.isEmpty ? nil : Date()
+            selectSuggestedDuplicates()
             return
         }
         snapshots = store.loadSnapshots()
@@ -382,10 +408,16 @@ final class AppModel {
             log.insert(LogEntry(title: entry.finding.title, bytes: result.bytes, outcome: result.outcome, detail: detail), at: 0)
         }
         store.saveLog(log)
+        pruneDuplicates()
         plan?.phase = .finished
     }
 
     func dismissPlan() { plan = nil }
+
+    func addLog(_ entry: LogEntry) {
+        log.insert(entry, at: 0)
+        if !DemoData.isEnabled { store.saveLog(log) }
+    }
 
     // MARK: Insights (computed locally from scans and findings)
 
@@ -446,6 +478,17 @@ final class AppModel {
                                 title: "\(ByteFormat.string(hidden)) can't be measured yet",
                                 detail: "macOS hides the Trash, iPhone backups and Mail until you grant Full Disk Access.",
                                 action: .fullDiskAccess, actionLabel: "Grant access"))
+        }
+        if privacyScanned == nil {
+            list.append(Insight(id: "privacy", symbol: "hand.raised.fill", tint: Theme.danger,
+                                title: "Do your photos reveal where you live?",
+                                detail: "Photos and documents often carry GPS coordinates, your phone's serial number or your name. Privacy Shield shows what and removes it.",
+                                action: .section(.privacy), actionLabel: "Check my files"))
+        } else if case let located = privacyReports.filter(\.revealsLocation).count, located > 0 {
+            list.append(Insight(id: "privacy", symbol: "location.fill", tint: Theme.danger,
+                                title: "\(located) file\(located == 1 ? "" : "s") reveal where \(located == 1 ? "it was" : "they were") taken",
+                                detail: "Anyone you send the original to can see the exact spot. Remove it in Privacy Shield.",
+                                action: .section(.privacy), actionLabel: "Review"))
         }
         if let temp = findings.first(where: { $0.id == "temp" }) {
             list.append(Insight(id: "temp", symbol: "arrow.clockwise.circle.fill", tint: Theme.brandStart,

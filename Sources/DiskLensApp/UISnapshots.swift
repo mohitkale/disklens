@@ -45,6 +45,15 @@ enum UISnapshots {
         model.selectTiers(nil)
         try? await Task.sleep(for: .seconds(1))
 
+        if DemoData.isEnabled {
+            model.section = .privacy
+            model.startPrivacyClean()
+            try? await Task.sleep(for: .seconds(2))
+            if let sheet = window.attachedSheet { shot("privacy-sheet", sheet) }
+            model.privacyJob = nil
+            try? await Task.sleep(for: .seconds(1))
+        }
+
         await model.quickClean()
         try? await Task.sleep(for: .seconds(1))
         if let sheet = window.attachedSheet { shot("quick-clean-sheet", sheet) }

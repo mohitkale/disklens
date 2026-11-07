@@ -38,8 +38,11 @@ frame overview 02
 frame cleanup-selected 03
 sheet cleanup-selected review-sheet 04
 sheet overview quick-clean-sheet 05
-frame explore 06
-frame history 07
+frame privacy 06
+sheet privacy privacy-sheet 07
+frame duplicates 08
+frame explore 09
+frame history 10
 ffmpeg -loglevel error -y -framerate 0.4 -i "$FR/%02d.png" \
   -vf "split[a][b];[a]palettegen=max_colors=256:stats_mode=diff[p];[b][p]paletteuse=dither=sierra2_4a:diff_mode=rectangle" \
   -loop 0 docs/tour.gif

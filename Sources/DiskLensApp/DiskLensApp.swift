@@ -58,6 +58,8 @@ struct ContentView: View {
             switch model.section {
             case .overview: OverviewView()
             case .cleanup: CleanupView()
+            case .duplicates: DuplicatesView()
+            case .privacy: PrivacyView()
             case .explore: ExploreView()
             case .history: HistoryView()
             }
@@ -77,6 +79,8 @@ struct ContentView: View {
         switch section {
         case .overview: "Drive usage, insights and categories"
         case .cleanup: "Everything that can be cleaned, with what depends on it. Safe total shown on the right."
+        case .duplicates: "Find identical files and keep one copy of each"
+        case .privacy: "See what your photos, videos and documents reveal (location, device, names) and remove it"
         case .explore: "Browse and search folders by size"
         case .history: "Free space over time, before/after comparisons and the cleanup log"
         }

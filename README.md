@@ -44,6 +44,8 @@
 | **Full scan** | Measures the whole drive from scratch: categories, hidden space, macOS system, free space (1–3 min, read-only). |
 | **Quick Scan + Quick Clean** | A ~15 s check of caches, logs and leftovers that nothing depends on. It shows a review and waits for your confirmation. |
 | **Clean Up** | Filter by Safe / Review first / Leave alone, use **Select all**, open each item's details (*what depends on this*), then **Review Selected…** → **Clean**. |
+| **Privacy Shield** | Finds photos, videos, PDFs and Office files that reveal **where they were taken** (GPS), **which device made them** (model and serial numbers) or **your name**, and shows places your files point to, such as home. It removes that information without re-compressing photos, and keeps their orientation and date. Originals go to the Trash, or you can keep them and save clean copies. |
+| **Duplicates** | Identical files (compared byte for byte, not by name) across your home folder, with a suggested copy to keep. APFS clones are detected, so you're never promised space you won't get. |
 | **Insights** | Free-space trend and forecast, biggest safe win, projects untouched for 6+ months, simulators last used months ago, apps you haven't opened, space hidden by macOS privacy. |
 | **Explore** | Browse any folder by size, filter by name, or search every subfolder with Spotlight. Show in Finder or copy the path. |
 | **History** | An interactive free/used trend chart, free space per scan, a before/after comparison of any two scans, and a cleanup log. |
@@ -51,7 +53,7 @@
 ### Take the tour
 
 <p align="center">
-  <img src="docs/tour.gif" alt="DiskLens tour: welcome, overview, Clean Up, review before cleaning, Quick Clean, Explore, History" width="900">
+  <img src="docs/tour.gif" alt="DiskLens tour: welcome, overview, Clean Up, review before cleaning, Quick Clean, Privacy Shield, Duplicates, Explore, History" width="900">
 </p>
 
 ### Screenshots
@@ -62,12 +64,16 @@
     <td width="50%"><b>Review before cleaning</b>: every item is re-checked, and risks are spelled out<br><img src="docs/screenshots/review-sheet.png" alt="Review before cleaning"></td>
   </tr>
   <tr>
-    <td><b>Quick Clean</b>: caches, logs and leftovers that nothing depends on<br><img src="docs/screenshots/quick-clean-sheet.png" alt="Quick Clean"></td>
-    <td><b>History</b>: free and used space over time, with a reading for any scan<br><img src="docs/screenshots/history.png" alt="History"></td>
+    <td><b>Privacy Shield</b>: what your files reveal, and the places they point to<br><img src="docs/screenshots/privacy.png" alt="Privacy Shield"></td>
+    <td><b>Remove info safely</b>: location only, or everything that identifies you<br><img src="docs/screenshots/privacy-sheet.png" alt="Privacy Shield clean options"></td>
   </tr>
   <tr>
+    <td><b>Duplicates</b>: identical files, with a suggested copy to keep<br><img src="docs/screenshots/duplicates.png" alt="Duplicates"></td>
+    <td><b>Quick Clean</b>: caches, logs and leftovers that nothing depends on<br><img src="docs/screenshots/quick-clean-sheet.png" alt="Quick Clean"></td>
+  </tr>
+  <tr>
+    <td><b>History</b>: free and used space over time, with a reading for any scan<br><img src="docs/screenshots/history.png" alt="History"></td>
     <td><b>Explore</b>: browse any folder by size, or search all subfolders<br><img src="docs/screenshots/explore.png" alt="Explore"></td>
-    <td><b>First run</b>: a full scan is recommended before anything else<br><img src="docs/screenshots/welcome.png" alt="Welcome"></td>
   </tr>
 </table>
 
@@ -153,7 +159,11 @@ Contributions are welcome, especially new cleanup rules. See [CONTRIBUTING.md](C
 
 ## Roadmap
 
+See [ROADMAP.md](ROADMAP.md) for the full plan. Highlights:
+
 - Notarized releases (no first-launch warning)
+- App uninstaller that also finds leftover settings and caches
+- Finder Quick Action: "Share without location"
 - An iPhone companion that shows your Mac's scans via iCloud (iOS can't inspect its own storage)
 - Scheduled reminders when free space runs low
 

@@ -7,7 +7,9 @@ enum Main {
     static func main() {
         if CommandLine.arguments.contains("--scan") {
             Task {
-                if CommandLine.arguments.contains("--quick") { await Headless.quick() } else {
+                if CommandLine.arguments.contains("--privacy") { await Headless.privacy() }
+                else if CommandLine.arguments.contains("--duplicates") { await Headless.duplicates() }
+                else if CommandLine.arguments.contains("--quick") { await Headless.quick() } else {
                     await Headless.scan(json: CommandLine.arguments.contains("--json"))
                 }
                 exit(0)
@@ -67,5 +69,29 @@ enum Headless {
             for item in f.items.prefix(4) { printItem(item) }
         }
         for a in r.advice { print("ℹ︎ \(a.title) — \(ByteFormat.string(a.bytes))") }
+    }
+
+    /// Counts only: never prints file names, people or coordinates.
+    static func privacy() async {
+        let started = Date()
+        let reports = await PrivacyScanner.scan(folders: PrivacyScanner.defaultFolders) { _, _ in }
+        let located = reports.filter(\.revealsLocation)
+        let spots = Hotspots.find(reports)
+        print("Privacy scan: \(reports.count) files reveal something, \(located.count) reveal location, "
+              + "\(reports.filter { $0.device != nil }.count) device, \(reports.filter { !$0.serials.isEmpty }.count) serial numbers, "
+              + "\(reports.filter { !$0.people.isEmpty }.count) names. Hotspots: \(spots.count) (busiest: \(spots.first.map { "\($0.files.count) files on \($0.days) days" } ?? "none")).")
+        for kind in [MetadataReport.Kind.image, .video, .pdf, .office] {
+            print("  \(kind.rawValue): \(reports.filter { $0.kind == kind }.count)")
+        }
+        print(String(format: "Took %.0fs", Date().timeIntervalSince(started)))
+    }
+
+    static func duplicates() async {
+        let started = Date()
+        let groups = await DuplicateFinder.scan(roots: DuplicateFinder.defaultRoots) { _ in }
+        let reclaim = groups.reduce(0) { $0 + $1.reclaimable }
+        let clones = groups.reduce(0) { $0 + $1.clonePaths.count }
+        print("Duplicates: \(groups.count) groups, \(groups.reduce(0) { $0 + $1.files.count }) files, \(ByteFormat.string(reclaim)) reclaimable, \(clones) APFS clones (free nothing).")
+        print(String(format: "Took %.0fs", Date().timeIntervalSince(started)))
     }
 }
