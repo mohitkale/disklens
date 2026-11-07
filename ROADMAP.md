@@ -8,27 +8,28 @@ Have an idea or want something sooner? [Open an issue](https://github.com/mohitk
 
 - **1.0**: full scan, Quick Scan / Quick Clean, Safe / Review first / Leave alone, dependency details for every item, the review sheet with safety checks, Explore with Spotlight search, History with trends, a universal app.
 - **1.2**: **Media Studio**: events → video (title, zoom-and-pan, crossfades, music, free up space afterwards), collages, and converting and resizing photos and videos (formats, sizes, target file size, GIF).
+- **1.3**: **Apps** (uninstaller with leftovers, leftovers of removed apps, startup items, browser extensions), **sensitive screenshots**, Office files cleaned in place, **similar and blurry photos**, **Enhance** with a before/after slider, clip **trim and reorder**, **built-in music**, the **menu bar** extra, **low-space notifications**, open at login, the Finder service **Make Private Copy**, and a "what grew since your last scan" insight.
 - **1.1**: **Privacy Shield** (what files reveal: GPS location, device and serial numbers, names; places your files point to; lossless removal with originals in the Trash) and **Duplicates** (content-based, detects APFS clones, suggests the copy to keep).
 
 ## Next
 
 ### Clean
-- [ ] **App uninstaller**: remove an app together with its leftover settings, caches and containers, showing each item's size and why it belongs to the app
-- [ ] Scheduled reminders when free space runs low, and a menu-bar mini view
-- [ ] A "what grew this month" report
+- [x] **App uninstaller**: remove an app together with its leftover settings, caches and containers, showing each item's size and why it belongs to the app (1.3)
+- [x] Scheduled reminders when free space runs low, and a menu-bar mini view (1.3)
+- [x] A "what grew this month" report (1.3)
 
 ### Protect
-- [ ] **Finder Quick Action "Share without location"**: right-click → shares a stripped copy
-- [ ] Office documents: remove author, company and editor names in place (reported only today)
-- [ ] Sensitive screenshot finder: on-device text recognition flags card numbers, passwords, OTPs, IDs and QR codes
-- [ ] A read-only list of background helpers, login items and browser extensions, with what each one is
+- [x] **Finder Quick Action "Share without location"**: right-click → shares a stripped copy (1.3)
+- [x] Office documents: remove author, company and editor names in place (reported only today) (1.3)
+- [x] Sensitive screenshot finder: on-device text recognition flags card numbers, passwords, OTPs, IDs and QR codes (1.3)
+- [x] A read-only list of background helpers, login items and browser extensions, with what each one is (1.3)
 
 ### Media (shared with the iPhone app)
-- [ ] Similar photos (not just identical), blurry photos and burst cleanup in folders and the Photos library
+- [x] Similar photos (not just identical), blurry photos and burst cleanup in folders and the Photos library (1.3)
 - [x] Converter and resizer, event videos and collages (1.2)
-- [ ] Video trimming and reordering before building an event video
-- [ ] Bundled royalty-free music tracks
-- [ ] Batch photo enhancement (exposure, colour, noise), with a before/after slider
+- [x] Video trimming and reordering before building an event video (1.3)
+- [x] Bundled royalty-free music tracks (1.3)
+- [x] Batch photo enhancement (exposure, colour, noise), with a before/after slider (1.3)
 
 ### Distribution
 - [ ] Notarized releases (no first-launch warning)

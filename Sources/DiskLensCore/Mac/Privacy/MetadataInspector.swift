@@ -21,8 +21,7 @@ public struct MetadataReport: Identifiable, Hashable, Sendable {
     public let people: [String]
     public let software: String?
     public let captured: Date?
-    /// Office documents can't be cleaned in place yet; they're reported only.
-    public var canClean: Bool { kind != .office }
+    public var canClean: Bool { true }
 
     public var name: String { (path as NSString).lastPathComponent }
     public var revealsLocation: Bool { coordinate != nil }

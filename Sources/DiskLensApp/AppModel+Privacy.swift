@@ -128,4 +128,47 @@ extension AppModel {
         }
         privacyJob?.phase = .finished
     }
+
+    // MARK: Sensitive screenshots
+
+    static let sensitiveFindingID = "sensitive-screenshots"
+    var isScanningSensitive: Bool { sensitiveProgress != nil }
+
+    func scanSensitive() async {
+        guard !isScanningSensitive, !DemoData.isEnabled else { return }
+        sensitiveProgress = (0, 0)
+        let folders = privacyFolders
+        let shots = await Task.detached { SensitiveScanner.screenshots(in: folders) }.value
+        sensitiveProgress = (0, shots.count)
+        sensitiveFindings = await SensitiveScanner.scan(shots) { done, total in
+            Task { @MainActor [weak self] in self?.sensitiveProgress = (done, total) }
+        }
+        sensitiveChecked = shots.count
+        sensitiveSelection = []
+        sensitiveScanned = .now
+        sensitiveProgress = nil
+    }
+
+    func reviewSensitive() {
+        let items = sensitiveFindings.filter { sensitiveSelection.contains($0.path) }.map { f in
+            FindingItem(path: f.path, bytes: f.bytes, note: f.kinds.map(\.rawValue).joined(separator: ", "), lastUsed: f.date, usedBy: "you", quickSafe: false)
+        }
+        guard !items.isEmpty else { return }
+        let finding = Finding(
+            id: Self.sensitiveFindingID, title: "Sensitive screenshots (\(items.count))",
+            detail: "Screenshots whose text looks like a card number, code, password, ID or recovery phrase.",
+            tier: .review, bytes: items.reduce(0) { $0 + $1.bytes }, items: items, action: .trash, symbol: "camera.viewfinder",
+            risk: "They stay in the Trash until you empty it, and may still be in Time Machine or iCloud backups. Empty the Trash to remove them from this Mac.")
+        selections[finding.id] = Set(items.map(\.path))
+        review([finding])
+    }
+
+    func pruneSensitive() {
+        guard let entry = plan?.entries.first(where: { $0.finding.id == Self.sensitiveFindingID }),
+              case let .done(result) = entry.status else { return }
+        let gone = Set(result.trashed)
+        sensitiveFindings.removeAll { gone.contains($0.path) }
+        sensitiveSelection.subtract(gone)
+        completed[Self.sensitiveFindingID] = nil
+    }
 }

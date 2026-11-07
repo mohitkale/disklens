@@ -7,7 +7,9 @@ enum Main {
     static func main() {
         if CommandLine.arguments.contains("--scan") {
             Task {
-                if CommandLine.arguments.contains("--privacy") { await Headless.privacy() }
+                if CommandLine.arguments.contains("--apps") { await Headless.apps() }
+                else if CommandLine.arguments.contains("--sensitive") { await Headless.sensitive() }
+                else if CommandLine.arguments.contains("--privacy") { await Headless.privacy() }
                 else if CommandLine.arguments.contains("--duplicates") { await Headless.duplicates() }
                 else if CommandLine.arguments.contains("--quick") { await Headless.quick() } else {
                     await Headless.scan(json: CommandLine.arguments.contains("--json"))
@@ -93,5 +95,33 @@ enum Headless {
         let clones = groups.reduce(0) { $0 + $1.clonePaths.count }
         print("Duplicates: \(groups.count) groups, \(groups.reduce(0) { $0 + $1.files.count }) files, \(ByteFormat.string(reclaim)) reclaimable, \(clones) APFS clones (free nothing).")
         print(String(format: "Took %.0fs", Date().timeIntervalSince(started)))
+    }
+
+    /// Counts only.
+    static func apps() async {
+        var t = Date()
+        let apps = AppIndex.installedApps()
+        let prints = await AppUninstaller.footprints(apps: apps) { _, _ in }
+        let withLeftovers = prints.filter { !$0.leftovers.isEmpty }
+        print("Apps: \(apps.count) installed, \(prints.count) removable, \(withLeftovers.count) keep data in Library "
+              + "(\(ByteFormat.string(prints.reduce(0) { $0 + $1.leftoverBytes })) total); largest app+data: \(ByteFormat.string(prints.first?.totalBytes ?? 0)). "
+              + String(format: "%.0fs", Date().timeIntervalSince(t)))
+        t = Date()
+        let orphans = await AppUninstaller.orphanedLeftovers(apps: apps)
+        print("Leftovers of removed apps: \(orphans.count) folders, \(ByteFormat.string(orphans.reduce(0) { $0 + $1.bytes })). " + String(format: "%.0fs", Date().timeIntervalSince(t)))
+        let startup = StartupInspector.items()
+        let ext = StartupInspector.browserExtensions()
+        print("Startup items: \(startup.count) (\(startup.filter { $0.kind == .userAgent }.count) yours); browser extensions: \(ext.count), "
+              + "\(ext.filter(StartupInspector.readsAllSites).count) can read every website")
+    }
+
+    static func sensitive() async {
+        let t = Date()
+        let shots = SensitiveScanner.screenshots(in: PrivacyScanner.defaultFolders)
+        let found = await SensitiveScanner.scan(shots) { _, _ in }
+        var counts: [String: Int] = [:]
+        for f in found { for k in f.kinds { counts[k.rawValue, default: 0] += 1 } }
+        print("Screenshots: \(shots.count) checked, \(found.count) contain something sensitive: \(counts.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value)" }.joined(separator: ", ")). "
+              + String(format: "%.0fs", Date().timeIntervalSince(t)))
     }
 }

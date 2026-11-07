@@ -45,16 +45,19 @@
 | **Quick Scan + Quick Clean** | A ~15 s check of caches, logs and leftovers that nothing depends on. It shows a review and waits for your confirmation. |
 | **Clean Up** | Filter by Safe / Review first / Leave alone, use **Select all**, open each item's details (*what depends on this*), then **Review Selected…** → **Clean**. |
 | **Privacy Shield** | Finds photos, videos, PDFs and Office files that reveal **where they were taken** (GPS), **which device made them** (model and serial numbers) or **your name**, and shows places your files point to, such as home. It removes that information without re-compressing photos, and keeps their orientation and date. Originals go to the Trash, or you can keep them and save clean copies. |
-| **Duplicates** | Identical files (compared byte for byte, not by name) across your home folder, with a suggested copy to keep. APFS clones are detected, so you're never promised space you won't get. |
-| **Media Studio** | **Events → Video:** photos and clips are grouped into events by date and place (from a folder or your Photos library), then turned into one 1080p video with an opening title, gentle zoom-and-pan on photos, crossfades, and optional music (ducked under clip sound), in landscape, portrait or square. Then optionally **free up space**: originals go to the Trash or Recently Deleted, after you confirm. **Collage:** grid or album rows in 1:1, 4:5, 9:16, 4:3 or 16:9. **Convert & Resize:** HEIC/JPEG/PNG/TIFF; longest side, percentage, crop to a shape, or "under 1 MB"; videos to HEVC/H.264 at 4K–540p, or GIF. Location is removed by default. |
-| **Insights** | Free-space trend and forecast, biggest safe win, projects untouched for 6+ months, simulators last used months ago, apps you haven't opened, space hidden by macOS privacy. |
+| **Sensitive screenshots** | Reads the text in your screenshots on this Mac (Apple's Vision framework) and flags card numbers (Luhn-checked), one-time codes, passwords, ID numbers, IBANs, crypto recovery phrases and QR codes, with blurred previews. |
+| **Duplicates** | Identical files (compared byte for byte, not by name) across your home folder, with a suggested copy to keep. APFS clones are detected, so you're never promised space you won't get. **Similar & blurry photos:** bursts and retakes that look alike, and out-of-focus shots, in a folder or your Photos library; the sharpest of each set is kept. |
+| **Apps** | **Uninstall** an app together with the caches, containers, settings and logs it leaves in your Library, each listed with its size. **Leftovers** of apps you already removed. **Startup items** (login items, background helpers) and **browser extensions**, with the ones that can read every website flagged. |
+| **Media Studio** | **Events → Video:** photos and clips are grouped into events by date and place (from a folder or your Photos library), then turned into one 1080p video with an opening title, gentle zoom-and-pan on photos, crossfades, and optional music (ducked under clip sound), in landscape, portrait or square. Then optionally **free up space**: originals go to the Trash or Recently Deleted, after you confirm. **Collage:** grid or album rows in 1:1, 4:5, 9:16, 4:3 or 16:9. **Drag to reorder** and **trim clips**, and pick a **built-in music** mood (generated on your Mac, free to use anywhere) or your own file. **Enhance:** automatic light and colour fixes, noise reduction and sharpening, with a before/after slider; saves copies. **Convert & Resize:** HEIC/JPEG/PNG/TIFF; longest side, percentage, crop to a shape, or "under 1 MB"; videos to HEVC/H.264 at 4K–540p, or GIF. Location is removed by default. |
+| **Menu bar, alerts and Finder** | Free space in the menu bar with Quick Clean and Scan Now, an optional notification when space runs low, open at login, and **Finder → Services → Make Private Copy (DiskLens)** to save a copy of any photo, video, PDF or Office file without location and camera details. |
+| **Insights** | What grew since your last scan, free-space trend and forecast, biggest safe win, projects untouched for 6+ months, simulators last used months ago, apps you haven't opened, space hidden by macOS privacy. |
 | **Explore** | Browse any folder by size, filter by name, or search every subfolder with Spotlight. Show in Finder or copy the path. |
 | **History** | An interactive free/used trend chart, free space per scan, a before/after comparison of any two scans, and a cleanup log. |
 
 ### Take the tour
 
 <p align="center">
-  <img src="docs/tour.gif" alt="DiskLens tour: welcome, overview, Clean Up, review before cleaning, Quick Clean, Privacy Shield, Duplicates, Explore, History" width="900">
+  <img src="docs/tour.gif" alt="DiskLens tour: welcome, overview, Clean Up, review before cleaning, Quick Clean, Privacy Shield, Duplicates, similar photos, Apps, Media Studio, Explore, History" width="900">
 </p>
 
 ### Screenshots
@@ -79,6 +82,18 @@
   <tr>
     <td><b>Convert & Resize</b>: formats, sizes, "under 1 MB", video to HEVC or GIF<br><img src="docs/screenshots/media-convert.png" alt="Convert and resize"></td>
     <td><b>Duplicates</b>: identical files, with a suggested copy to keep<br><img src="docs/screenshots/duplicates.png" alt="Duplicates"></td>
+  </tr>
+  <tr>
+    <td><b>Similar & blurry photos</b>: keep the sharpest shot of each burst<br><img src="docs/screenshots/duplicates-similar.png" alt="Similar and blurry photos"></td>
+    <td><b>Enhance</b>: automatic fixes with a before/after slider<br><img src="docs/screenshots/media-enhance.png" alt="Enhance photos"></td>
+  </tr>
+  <tr>
+    <td><b>Apps</b>: uninstall with everything an app leaves behind<br><img src="docs/screenshots/apps.png" alt="App uninstaller"></td>
+    <td><b>Browser extensions</b>: which ones can read every website<br><img src="docs/screenshots/apps-extensions.png" alt="Browser extensions"></td>
+  </tr>
+  <tr>
+    <td><b>Startup items</b>: what starts with your Mac, and what's missing<br><img src="docs/screenshots/apps-startup.png" alt="Startup items"></td>
+    <td><b>Leftovers</b>: data from apps you already removed<br><img src="docs/screenshots/apps-leftovers.png" alt="Leftovers of removed apps"></td>
   </tr>
   <tr>
     <td><b>History</b>: free and used space over time, with a reading for any scan<br><img src="docs/screenshots/history.png" alt="History"></td>
@@ -136,6 +151,7 @@ open build/DiskLens.app
 swift run DiskLens --scan            # human-readable report
 swift run DiskLens --scan --json     # machine-readable
 swift run DiskLens --scan --quick    # what Quick Clean would find
+swift run DiskLens --scan --apps     # app sizes, leftovers, startup items, extensions (counts only)
 ```
 
 ## Safety model
@@ -170,11 +186,8 @@ Contributions are welcome, especially new cleanup rules. See [CONTRIBUTING.md](C
 
 See [ROADMAP.md](ROADMAP.md) for the full plan. Highlights:
 
-- Notarized releases (no first-launch warning)
-- App uninstaller that also finds leftover settings and caches
-- Finder Quick Action: "Share without location"
-- An iPhone companion that shows your Mac's scans via iCloud (iOS can't inspect its own storage)
-- Scheduled reminders when free space runs low
+- Notarized releases (no first-launch warning) and a Homebrew cask
+- Sibling apps for iPhone, Android and Windows (separate repos)
 
 ## License
 

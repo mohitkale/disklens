@@ -10,6 +10,15 @@ public struct InstalledApp: Sendable, Hashable {
     public let lastUsed: Date?
     /// Installed from the Mac App Store (or by an admin): Finder/Launchpad should remove it, not DiskLens.
     public let isManaged: Bool
+
+    public init(path: String, name: String, bundleID: String?, version: String?, lastUsed: Date?, isManaged: Bool) {
+        self.path = path
+        self.name = name
+        self.bundleID = bundleID
+        self.version = version
+        self.lastUsed = lastUsed
+        self.isManaged = isManaged
+    }
 }
 
 /// Local facts about apps and files from bundles and Spotlight metadata. No network.

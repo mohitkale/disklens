@@ -36,8 +36,19 @@ public struct VideoOptions: Sendable {
     public var musicPath: String?
     public var keepClipAudio = true
     public var musicVolume: Float = 0.7
+    /// Per-clip trims by item ID: start and length in seconds.
+    public var trims: [String: ClipTrim] = [:]
 
     public init() {}
+}
+
+public struct ClipTrim: Sendable, Hashable {
+    public var start: Double
+    public var length: Double
+    public init(start: Double, length: Double) {
+        self.start = start
+        self.length = length
+    }
 }
 
 public enum VideoBuilderError: LocalizedError {
@@ -87,11 +98,16 @@ public enum VideoBuilder {
             case .video:
                 guard let asset = await MediaLibrary.asset(for: item) else { skipped += 1; continue }
                 let start = renderer.time
-                guard let used = try await renderer.play(asset, maxSeconds: options.maxClipSeconds, transition: options.transitionSeconds,
+                let trim = options.trims[item.id]
+                guard let used = try await renderer.play(asset, start: trim?.start ?? 0, maxSeconds: trim?.length ?? options.maxClipSeconds,
+                                                         transition: options.transitionSeconds,
                                                          compose: { compose($0, canvas: options.shape.size, zoom: 1, drift: .zero) }) else {
                     skipped += 1; continue
                 }
-                if options.keepClipAudio { clipAudio.append((asset, CMTimeRange(start: .zero, duration: used), start)) }
+                // Only clips that actually have sound join the audio mix (an empty audio track breaks reading).
+                if options.keepClipAudio, let tracks = try? await asset.loadTracks(withMediaType: .audio), !tracks.isEmpty {
+                    clipAudio.append((asset, CMTimeRange(start: CMTime(seconds: trim?.start ?? 0, preferredTimescale: 600), duration: used), start))
+                }
             }
         }
         guard renderer.frames > 0, skipped < items.count else {
@@ -208,12 +224,17 @@ public enum VideoBuilder {
             params.append(p)
         }
         if !clips.isEmpty, let cTrack = comp.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid) {
+            var inserted = false
             for clip in clips {
-                if let a = try? await clip.asset.loadTracks(withMediaType: .audio).first {
-                    try? cTrack.insertTimeRange(clip.range, of: a, at: clip.at)
-                }
+                if let a = try? await clip.asset.loadTracks(withMediaType: .audio).first,
+                   (try? cTrack.insertTimeRange(clip.range, of: a, at: clip.at)) != nil { inserted = true }
             }
-            params.append(AVMutableAudioMixInputParameters(track: cTrack))
+            if inserted { params.append(AVMutableAudioMixInputParameters(track: cTrack)) } else { comp.removeTrack(cTrack) }
+        }
+        if params.isEmpty {   // nothing audible after all: keep the picture as it is
+            try? FileManager.default.removeItem(at: output)
+            try FileManager.default.copyItem(at: video, to: output)
+            return
         }
         let mix = AVMutableAudioMix()
         mix.inputParameters = params
@@ -289,13 +310,15 @@ final class FrameWriter: @unchecked Sendable {
     }
 
     /// Plays a clip (up to `maxSeconds`) at the output frame rate. Returns how much of it was used.
-    func play(_ asset: AVAsset, maxSeconds: Double, transition: Double, compose: (CIImage) -> CIImage) async throws -> CMTime? {
+    func play(_ asset: AVAsset, start: Double = 0, maxSeconds: Double, transition: Double, compose: (CIImage) -> CIImage) async throws -> CMTime? {
         guard let track = try await asset.loadTracks(withMediaType: .video).first else { return nil }
         let transform = try await track.load(.preferredTransform)
         let duration = try await asset.load(.duration)
-        let used = CMTimeMinimum(duration, CMTime(seconds: maxSeconds, preferredTimescale: 600))
+        let from = CMTimeMinimum(CMTime(seconds: max(0, start), preferredTimescale: 600), duration)
+        let used = CMTimeMinimum(duration - from, CMTime(seconds: maxSeconds, preferredTimescale: 600))
+        guard used > .zero else { return nil }
         let reader = try AVAssetReader(asset: asset)
-        reader.timeRange = CMTimeRange(start: .zero, duration: used)
+        reader.timeRange = CMTimeRange(start: from, duration: used)
         let out = AVAssetReaderTrackOutput(track: track, outputSettings: [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA])
         out.alwaysCopiesSampleData = false
         reader.add(out)
@@ -306,7 +329,7 @@ final class FrameWriter: @unchecked Sendable {
         var written = 0
         while let sample = out.copyNextSampleBuffer() {
             guard let pixels = CMSampleBufferGetImageBuffer(sample) else { continue }
-            let pts = CMTimeGetSeconds(CMSampleBufferGetPresentationTimeStamp(sample))
+            let pts = CMTimeGetSeconds(CMSampleBufferGetPresentationTimeStamp(sample)) - CMTimeGetSeconds(from)
             var image = CIImage(cvPixelBuffer: pixels).transformed(by: transform)
             image = image.transformed(by: CGAffineTransform(translationX: -image.extent.minX, y: -image.extent.minY))
             let frame = compose(image)

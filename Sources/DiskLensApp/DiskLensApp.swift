@@ -4,20 +4,24 @@ import SwiftUI
 
 struct DiskLensApp: App {
     @State private var model = AppModel()
+    @AppStorage(Prefs.showMenuBar) private var showMenuBar = true
 
     init() {
         // Lets the app come to the front when launched straight from the binary (swift run).
         NSApplication.shared.setActivationPolicy(.regular)
+        NSApplication.shared.servicesProvider = ServiceProvider.shared
+        NSUpdateDynamicServices()
     }
 
     var body: some Scene {
-        WindowGroup("DiskLens") {
+        WindowGroup("DiskLens", id: "main") {
             ContentView()
                 .environment(model)
                 .frame(minWidth: 1040, minHeight: 680)
                 .task {
                     // Never scans on its own: first launch shows the welcome (recommending a full scan),
                     // later launches show saved results with a nudge when they're old.
+                    model.startMonitoring()
                     await UISnapshots.capture(model)
                 }
         }
@@ -32,6 +36,17 @@ struct DiskLensApp: App {
                     .disabled(model.isBusy)
             }
         }
+
+        Settings {
+            SettingsView()
+        }
+
+        MenuBarExtra(isInserted: Binding(get: { showMenuBar && !DemoData.isEnabled }, set: { showMenuBar = $0 })) {
+            MenuBarContent().environment(model)
+        } label: {
+            MenuBarLabel().environment(model)
+        }
+        .menuBarExtraStyle(.window)
     }
 }
 
@@ -59,6 +74,7 @@ struct ContentView: View {
             case .overview: OverviewView()
             case .cleanup: CleanupView()
             case .duplicates: DuplicatesView()
+            case .apps: AppsView()
             case .privacy: PrivacyView()
             case .media: MediaView()
             case .explore: ExploreView()
@@ -80,7 +96,8 @@ struct ContentView: View {
         switch section {
         case .overview: "Drive usage, insights and categories"
         case .cleanup: "Everything that can be cleaned, with what depends on it. Safe total shown on the right."
-        case .duplicates: "Find identical files and keep one copy of each"
+        case .duplicates: "Find identical files and similar or blurry photos, and keep the best one"
+        case .apps: "Uninstall apps with everything they leave behind, find leftovers of removed apps, and see what starts with your Mac"
         case .privacy: "See what your photos, videos and documents reveal (location, device, names) and remove it"
         case .media: "Turn events into videos, make collages, convert and resize photos and videos"
         case .explore: "Browse and search folders by size"

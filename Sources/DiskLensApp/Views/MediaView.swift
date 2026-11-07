@@ -16,19 +16,20 @@ struct MediaView: View {
                 HStack(alignment: .center) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Media Studio").font(.system(size: 26, weight: .bold, design: .rounded))
-                        Text("Turn events into videos, make collages, and convert or resize photos and videos. All on this Mac.")
+                        Text("Turn events into videos, make collages, enhance photos, and convert or resize. All on this Mac.")
                             .foregroundStyle(.secondary)
                     }
                     Spacer()
                     Picker("Tool", selection: $model.mediaTool) {
                         ForEach(MediaTool.allCases) { Label($0.title, systemImage: $0.symbol).tag($0) }
                     }
-                    .pickerStyle(.segmented).labelsHidden().frame(maxWidth: 460).handCursor()
+                    .pickerStyle(.segmented).labelsHidden().frame(maxWidth: 560).handCursor()
                     .help("Choose a tool")
                 }
                 switch model.mediaTool {
                 case .events: EventsPanel()
                 case .collage: CollagePanel()
+                case .enhance: EnhancePanel()
                 case .convert: ConvertPanel()
                 }
             }
@@ -210,14 +211,26 @@ private struct EventDetail: View {
                 GridRow {
                     Text("Music").foregroundStyle(.secondary)
                     HStack {
-                        if let music = model.videoOptions.musicPath {
-                            Label((music as NSString).lastPathComponent, systemImage: "music.note").lineLimit(1)
-                            Button { model.videoOptions.musicPath = nil } label: { Image(systemName: "xmark.circle.fill") }
+                        if let label = model.musicLabel {
+                            Label(label, systemImage: "music.note").lineLimit(1)
+                            Button { model.clearMusic() } label: { Image(systemName: "xmark.circle.fill") }
                                 .buttonStyle(IconButtonStyle()).help("No music")
                         }
-                        Button(model.videoOptions.musicPath == nil ? "Choose Music…" : "Change…") { model.chooseMusic() }
-                            .buttonStyle(SoftButtonStyle(tint: .secondary))
-                            .help("An audio file you own. It loops and fades in and out to fit the video.")
+                        Menu(model.musicLabel == nil ? "Add Music" : "Change") {
+                            Section("Built in (made on this Mac, free to use anywhere)") {
+                                ForEach(MusicGenerator.Mood.allCases) { mood in
+                                    Button(mood.label) { model.useBuiltInMusic(mood) }
+                                }
+                            }
+                            Divider()
+                            Button("Choose a File…") { model.chooseMusic() }
+                        }
+                        .menuStyle(.borderlessButton).fixedSize().handCursor()
+                        .help("A built-in soft music bed, or an audio file you own. It loops and fades to fit the video.")
+                        if model.videoOptions.musicPath != nil || model.musicMood != nil {
+                            Slider(value: $model.videoOptions.musicVolume, in: 0.1...1).frame(maxWidth: 120).handCursor()
+                                .help("Music volume")
+                        }
                     }
                 }
             }
@@ -225,23 +238,17 @@ private struct EventDetail: View {
 
             footer(included)
             Divider()
-            Text("Tap a photo or clip to leave it out.").font(.caption).foregroundStyle(.secondary)
+            HStack {
+                Text("Click to leave something out. Drag to change the order. Right-click a clip to trim it.").font(.caption).foregroundStyle(.secondary)
+                Spacer()
+                if model.mediaOrder[event.id] != nil {
+                    Button("Back to Time Order") { model.resetOrder(event) }.buttonStyle(.textLink).font(.caption)
+                        .help("Order everything by when it was taken again")
+                }
+            }
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 92), spacing: 8)], spacing: 8) {
-                ForEach(event.items.prefix(120)) { item in
-                    let excluded = model.excludedMedia.contains(item.id)
-                    Button {
-                        if excluded { model.excludedMedia.remove(item.id) } else { model.excludedMedia.insert(item.id) }
-                    } label: {
-                        MediaThumb(item: item)
-                            .opacity(excluded ? 0.35 : 1)
-                            .overlay(alignment: .topLeading) {
-                                Image(systemName: excluded ? "circle" : "checkmark.circle.fill")
-                                    .font(.system(size: 16)).foregroundStyle(excluded ? Color.white : Theme.brandStart)
-                                    .background(Circle().fill(.white).padding(2)).padding(5)
-                            }
-                    }
-                    .buttonStyle(.plain).handCursor()
-                    .help(excluded ? "Left out. Click to include" : "Included. Click to leave it out of the video")
+                ForEach(model.orderedItems(event).prefix(120)) { item in
+                    EventItemTile(item: item, event: event)
                 }
             }
             if event.items.count > 120 { Text("Showing the first 120 items; all included items are used.").font(.caption).foregroundStyle(.secondary) }
@@ -313,6 +320,226 @@ private struct EventDetail: View {
         let o = model.videoOptions
         let seconds = 2.5 + items.reduce(0.0) { $0 + ($1.kind == .photo ? o.photoSeconds : min($1.duration, o.maxClipSeconds)) }
         return String(format: "%d:%02d", Int(seconds) / 60, Int(seconds) % 60)
+    }
+}
+
+/// One photo or clip in an event: click to include, drag to reorder, trim clips.
+private struct EventItemTile: View {
+    @Environment(AppModel.self) private var model
+    let item: MediaItem
+    let event: MediaEvent
+    @State private var trimming = false
+    @State private var targeted = false
+
+    var body: some View {
+        let excluded = model.excludedMedia.contains(item.id)
+        let trim = model.videoOptions.trims[item.id]
+        Button {
+            if excluded { model.excludedMedia.remove(item.id) } else { model.excludedMedia.insert(item.id) }
+        } label: {
+            MediaThumb(item: item)
+                .opacity(excluded ? 0.35 : 1)
+                .overlay(alignment: .topLeading) {
+                    Image(systemName: excluded ? "circle" : "checkmark.circle.fill")
+                        .font(.system(size: 16)).foregroundStyle(excluded ? Color.white : Theme.brandStart)
+                        .background(Circle().fill(.white).padding(2)).padding(5)
+                }
+                .overlay(alignment: .topTrailing) {
+                    if item.kind == .video {
+                        Button { trimming = true } label: {
+                            Image(systemName: "scissors").font(.system(size: 10, weight: .bold)).foregroundStyle(.white)
+                                .padding(5).background(Circle().fill(trim == nil ? Color.black.opacity(0.5) : Theme.brandStart))
+                        }
+                        .buttonStyle(.plain).padding(4).handCursor().help(trim == nil ? "Trim this clip" : "Trimmed. Click to change")
+                    }
+                }
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Theme.brandStart, lineWidth: targeted ? 3 : 0))
+        }
+        .buttonStyle(.plain).handCursor()
+        .help(excluded ? "Left out. Click to include" : "Included. Click to leave it out; drag to move it")
+        .draggable(item.id) { MediaThumb(item: item, size: 60) }
+        .dropDestination(for: String.self) { ids, _ in
+            guard let id = ids.first else { return false }
+            model.moveMedia(id, before: item.id, in: event)
+            return true
+        } isTargeted: { targeted = $0 }
+        .contextMenu {
+            Button("Move Earlier") { model.moveMedia(item, by: -1, in: event) }
+            Button("Move Later") { model.moveMedia(item, by: 1, in: event) }
+            if item.kind == .video {
+                Divider()
+                Button("Trim…") { trimming = true }
+                if trim != nil { Button("Remove Trim") { model.videoOptions.trims[item.id] = nil } }
+            }
+        }
+        .popover(isPresented: $trimming) { TrimEditor(item: item).environment(model) }
+    }
+}
+
+private struct TrimEditor: View {
+    @Environment(AppModel.self) private var model
+    let item: MediaItem
+
+    var body: some View {
+        let duration = max(item.duration, 1)
+        let current = model.videoOptions.trims[item.id] ?? ClipTrim(start: 0, length: min(duration, model.videoOptions.maxClipSeconds))
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Trim clip").font(.headline)
+            Text(item.name).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+            Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 8) {
+                GridRow {
+                    Text("Start").foregroundStyle(.secondary)
+                    Slider(value: Binding(get: { current.start }, set: { v in
+                        model.videoOptions.trims[item.id] = ClipTrim(start: v, length: min(current.length, duration - v))
+                    }), in: 0...max(0, duration - 0.5)).frame(width: 220)
+                    Text(time(current.start)).monospacedDigit().frame(width: 44, alignment: .trailing)
+                }
+                GridRow {
+                    Text("Length").foregroundStyle(.secondary)
+                    Slider(value: Binding(get: { current.length }, set: { v in
+                        model.videoOptions.trims[item.id] = ClipTrim(start: current.start, length: v)
+                    }), in: 0.5...max(0.5, duration - current.start)).frame(width: 220)
+                    Text(time(current.length)).monospacedDigit().frame(width: 44, alignment: .trailing)
+                }
+            }
+            .font(.callout)
+            HStack {
+                Text("Plays \(time(current.start))–\(time(current.start + current.length)) of \(time(duration))").font(.caption).foregroundStyle(.secondary)
+                Spacer()
+                Button("Reset") { model.videoOptions.trims[item.id] = nil }.buttonStyle(.textLink).font(.caption)
+            }
+        }
+        .padding(16)
+    }
+
+    private func time(_ s: Double) -> String { String(format: "%d:%04.1f", Int(s) / 60, s.truncatingRemainder(dividingBy: 60)) }
+}
+
+// MARK: - Enhance
+
+private struct EnhancePanel: View {
+    @Environment(AppModel.self) private var model
+    @State private var split: CGFloat = 0.5
+
+    var body: some View {
+        @Bindable var model = model
+        HStack(alignment: .top, spacing: 20) {
+            VStack(alignment: .leading, spacing: 14) {
+                SectionHeader(title: "Enhance photos", subtitle: "Apple's automatic exposure, colour and shadow fixes, plus gentle noise reduction and sharpening. Saves copies; originals are never changed.", symbol: "wand.and.stars")
+                Divider()
+                Toggle("Fix light and colour", isOn: $model.enhanceOptions.autoAdjust).toggleStyle(.checkbox).handCursor()
+                    .help("Exposure, contrast, vibrance, shadows and highlights, like the Auto button in Photos")
+                Toggle("Reduce noise", isOn: $model.enhanceOptions.reduceNoise).toggleStyle(.checkbox).handCursor()
+                    .help("Smooths the grain in low-light photos")
+                Toggle("Sharpen", isOn: $model.enhanceOptions.sharpen).toggleStyle(.checkbox).handCursor()
+                    .help("Crisper detail without halos")
+                HStack {
+                    Text("Strength").foregroundStyle(.secondary)
+                    Slider(value: $model.enhanceOptions.strength, in: 0.2...1).handCursor()
+                    Text("\(Int(model.enhanceOptions.strength * 100))%").monospacedDigit().foregroundStyle(.secondary).frame(width: 40)
+                }
+                .help("Blend the result with the original")
+                Toggle("Remove location and camera details", isOn: $model.enhanceRemovePrivate).toggleStyle(.checkbox).handCursor()
+                    .help("The copies keep the date taken but not where or with what")
+                Divider()
+                HStack {
+                    Button { model.addEnhancePhotos() } label: { Label("Add Photos…", systemImage: "plus") }
+                        .buttonStyle(SoftButtonStyle(tint: .secondary))
+                    if let event = model.selectedEvent {
+                        Button("Use “\(event.title)”") { Task { await model.useEventForEnhance(event) } }
+                            .buttonStyle(.textLink).font(.callout).lineLimit(1).help("Enhance this event's photos")
+                    }
+                }
+                if !model.enhanceItems.isEmpty {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(model.enhanceItems) { item in
+                                Button {
+                                    model.enhancePreviewID = item.id
+                                    Task { await model.refreshEnhancePreview() }
+                                } label: {
+                                    MediaThumb(item: item, size: 64)
+                                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Theme.brandStart, lineWidth: model.enhanceSelected?.id == item.id ? 3 : 0))
+                                }
+                                .buttonStyle(.plain).handCursor().help("Preview \(item.name)")
+                                .contextMenu { Button("Remove") { Task { await model.removeFromEnhance(item) } } }
+                            }
+                        }
+                    }
+                    Text("Saved to " + model.enhanceFolder.path.replacingOccurrences(of: NSHomeDirectory(), with: "~")).font(.caption).foregroundStyle(.secondary)
+                    if let p = model.enhanceProgress {
+                        ProgressView(value: Double(p.done), total: Double(max(p.total, 1)))
+                        Text("Enhanced \(p.done) of \(p.total)…").font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                    } else {
+                        Button { Task { await model.saveEnhanced() } } label: {
+                            Label("Save \(model.enhanceItems.count) Enhanced Cop\(model.enhanceItems.count == 1 ? "y" : "ies")", systemImage: "square.and.arrow.down")
+                        }
+                        .buttonStyle(GradientButtonStyle(large: true)).disabled(DemoData.isEnabled)
+                    }
+                    let saved = model.enhanceResults.filter(\.ok)
+                    if !saved.isEmpty {
+                        HStack {
+                            Label("\(saved.count) saved", systemImage: "checkmark.circle.fill").foregroundStyle(Theme.safe)
+                            Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting(saved.compactMap(\.output).map { URL(fileURLWithPath: $0) }) }
+                                .buttonStyle(.textLink)
+                        }
+                        .font(.callout)
+                    }
+                    ForEach(model.enhanceResults.filter { !$0.ok }, id: \.source) { r in
+                        Label("\((r.source as NSString).lastPathComponent): \(r.message)", systemImage: "exclamationmark.triangle").font(.caption).foregroundStyle(Theme.review)
+                    }
+                }
+            }
+            .premiumCard()
+            .frame(width: 380)
+            .onChange(of: model.enhanceOptions) { Task { await model.refreshEnhancePreview() } }
+
+            VStack(alignment: .leading, spacing: 8) {
+                if let before = model.enhanceBefore, let after = model.enhanceAfter {
+                    BeforeAfter(before: before, after: after, split: $split)
+                    Text("Drag the line to compare. Left: original · right: enhanced.").font(.caption).foregroundStyle(.secondary)
+                } else {
+                    VStack(spacing: 10) {
+                        Image(systemName: "wand.and.stars").font(.system(size: 40)).foregroundStyle(.secondary)
+                        Text("Add photos to see a before and after.").foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 360)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .premiumCard()
+        }
+    }
+}
+
+/// The original on the left of the divider and the enhanced version on the right.
+private struct BeforeAfter: View {
+    let before: CGImage
+    let after: CGImage
+    @Binding var split: CGFloat
+
+    var body: some View {
+        let aspect = CGFloat(before.width) / CGFloat(max(before.height, 1))
+        GeometryReader { geo in
+            let x = geo.size.width * split
+            ZStack(alignment: .leading) {
+                Image(decorative: after, scale: 1).resizable().aspectRatio(contentMode: .fit)
+                Image(decorative: before, scale: 1).resizable().aspectRatio(contentMode: .fit)
+                    .mask(alignment: .leading) { Rectangle().frame(width: x) }
+                Rectangle().fill(.white).frame(width: 2).shadow(radius: 2).offset(x: x - 1)
+                Image(systemName: "arrow.left.and.right.circle.fill").font(.system(size: 26)).symbolRenderingMode(.palette)
+                    .foregroundStyle(Theme.brandStart, .white).offset(x: x - 13)
+                Text("Before").font(.caption2.weight(.bold)).padding(5).background(.black.opacity(0.5), in: Capsule()).foregroundStyle(.white)
+                    .padding(8).frame(maxHeight: .infinity, alignment: .top)
+                Text("After").font(.caption2.weight(.bold)).padding(5).background(.black.opacity(0.5), in: Capsule()).foregroundStyle(.white)
+                    .padding(8).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+            }
+            .contentShape(Rectangle())
+            .gesture(DragGesture(minimumDistance: 0).onChanged { split = min(1, max(0, $0.location.x / geo.size.width)) })
+            .onHover { inside in if inside { NSCursor.resizeLeftRight.push() } else { NSCursor.pop() } }
+        }
+        .aspectRatio(aspect, contentMode: .fit)
+        .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 }
 

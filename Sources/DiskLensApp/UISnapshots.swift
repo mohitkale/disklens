@@ -66,6 +66,22 @@ enum UISnapshots {
             model.mediaTool = .convert
             try? await Task.sleep(for: .seconds(2))
             shot("media-convert")
+            model.mediaTool = .enhance
+            await model.refreshEnhancePreview()
+            try? await Task.sleep(for: .seconds(2))
+            shot("media-enhance")
+            model.section = .apps
+            for tab in [AppsTab.leftovers, .startup, .extensions] {
+                model.appsTab = tab
+                try? await Task.sleep(for: .seconds(1.5))
+                shot("apps-" + tab.rawValue)
+            }
+            model.appsTab = .uninstall
+            model.section = .duplicates
+            model.duplicatesTab = .similar
+            try? await Task.sleep(for: .seconds(2))
+            shot("duplicates-similar")
+            model.duplicatesTab = .identical
             model.mediaTool = .events
             model.section = .privacy
             model.startPrivacyClean()

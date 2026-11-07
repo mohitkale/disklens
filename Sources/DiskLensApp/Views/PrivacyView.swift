@@ -1,3 +1,4 @@
+import AppKit
 import DiskLensCore
 import SwiftUI
 
@@ -13,6 +14,7 @@ struct PrivacyView: View {
                 scope
                 if model.isScanningPrivacy { progressCard }
                 if model.privacyScanned != nil || !model.privacyReports.isEmpty { results }
+                SensitiveScreenshotsCard()
                 photosNote
             }
             .padding(28)
@@ -20,7 +22,7 @@ struct PrivacyView: View {
             .frame(maxWidth: .infinity)
         }
         .background(PageBackground())
-        .safeAreaInset(edge: .bottom) { if !model.privacyReports.isEmpty { selectionBar } }
+        .safeAreaInset(edge: .bottom) { if !model.privacyReports.isEmpty && model.sensitiveSelection.isEmpty { selectionBar } }
         .sheet(isPresented: Binding(get: { model.privacyJob != nil }, set: { if !$0 { model.privacyJob = nil } })) {
             PrivacyCleanSheet().environment(model).interactiveDismissDisabled(model.privacyJob?.phase == .running)
         }
@@ -229,7 +231,8 @@ private struct PrivacyRow: View {
             Toggle("", isOn: Binding(get: { model.privacySelection.contains(report.path) },
                                      set: { on in if on { model.privacySelection.insert(report.path) } else { model.privacySelection.remove(report.path) } }))
                 .labelsHidden().toggleStyle(.checkbox).disabled(!report.canClean).handCursor()
-                .help(report.canClean ? "Include this file" : "Office files can't be cleaned yet. Use File → Inspect Document in Word, Excel or PowerPoint.")
+                .help(report.kind == .office ? "Include this file: removes the author, last editor, company and manager from its properties"
+                      : "Include this file")
             Image(systemName: icon).foregroundStyle(.secondary).frame(width: 18)
             VStack(alignment: .leading, spacing: 4) {
                 Text(report.name).lineLimit(1).truncationMode(.middle)
@@ -431,5 +434,104 @@ struct PrivacyCleanSheet: View {
             }
         }
         .padding(16)
+    }
+}
+
+/// Screenshots whose text shows a card number, one-time code, password, ID or recovery phrase.
+/// The text is read on this Mac with Apple's Vision framework; nothing is uploaded.
+private struct SensitiveScreenshotsCard: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        Card {
+            HStack(alignment: .top) {
+                SectionHeader(title: "Sensitive screenshots",
+                              subtitle: "Screenshots of card numbers, one-time codes, passwords, IDs or crypto recovery phrases. Their text is read on this Mac; nothing is uploaded.",
+                              symbol: "camera.viewfinder")
+                Spacer()
+                if let date = model.sensitiveScanned { Chip(text: "Checked \(date.friendly)", symbol: "clock", tint: .secondary) }
+                Button { Task { await model.scanSensitive() } } label: {
+                    Label(model.sensitiveScanned == nil ? "Check Screenshots" : "Check Again", systemImage: "text.viewfinder")
+                }
+                .buttonStyle(SoftButtonStyle(tint: Theme.brandStart))
+                .disabled(model.isScanningSensitive || model.privacyFolders.isEmpty)
+                .help("Read the text in every screenshot in the folders above. Read-only; about a second per screenshot.")
+            }
+            if let p = model.sensitiveProgress {
+                HStack(spacing: 12) {
+                    ProgressView(value: p.total > 0 ? Double(p.done) / Double(p.total) : nil).frame(maxWidth: 360)
+                    Text(p.total > 0 ? "Read \(p.done) of \(p.total) screenshots…" : "Finding screenshots…").foregroundStyle(.secondary).monospacedDigit()
+                }
+            } else if model.sensitiveScanned != nil && model.sensitiveFindings.isEmpty {
+                Label("No screenshots with sensitive text in \(model.sensitiveChecked) checked.", systemImage: "checkmark.seal.fill")
+                    .font(.headline).foregroundStyle(Theme.safe)
+            }
+            if !model.sensitiveFindings.isEmpty {
+                Divider()
+                ForEach(model.sensitiveFindings) { f in
+                    SensitiveRow(finding: f)
+                    Divider()
+                }
+                HStack {
+                    Text(model.sensitiveSelection.isEmpty ? "Tick the screenshots you no longer need."
+                         : "\(model.sensitiveSelection.count) selected · moved to the Trash after you review them")
+                        .font(.callout).foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Clear Selection") { model.sensitiveSelection = [] }
+                        .buttonStyle(SoftButtonStyle(tint: .secondary)).disabled(model.sensitiveSelection.isEmpty)
+                    Button { model.reviewSensitive() } label: { Label("Review Selected…", systemImage: "list.bullet.clipboard") }
+                        .buttonStyle(GradientButtonStyle()).disabled(model.sensitiveSelection.isEmpty)
+                        .help("Review exactly what moves to the Trash. Empty the Trash afterwards so they're really gone.")
+                }
+            }
+        }
+    }
+}
+
+private struct SensitiveRow: View {
+    @Environment(AppModel.self) private var model
+    let finding: SensitiveFinding
+    @State private var thumb: NSImage?
+
+    var body: some View {
+        let selected = model.sensitiveSelection.contains(finding.path)
+        HStack(spacing: 12) {
+            Toggle("", isOn: Binding(get: { selected }, set: { on in
+                if on { model.sensitiveSelection.insert(finding.path) } else { model.sensitiveSelection.remove(finding.path) }
+            }))
+            .labelsHidden().toggleStyle(.checkbox).handCursor().help("Move this screenshot to the Trash")
+            Group {
+                if let thumb {
+                    // Blurred on purpose: the point is that its contents are sensitive.
+                    Image(nsImage: thumb).resizable().scaledToFill().blur(radius: 6)
+                } else {
+                    Rectangle().fill(.quaternary)
+                }
+            }
+            .frame(width: 64, height: 44).clipShape(RoundedRectangle(cornerRadius: 6))
+            .help("Preview is blurred. Open it with Quick Look from Finder to see it.")
+            VStack(alignment: .leading, spacing: 4) {
+                Text(finding.name).font(.headline).lineLimit(1).truncationMode(.middle).help(finding.path)
+                HStack(spacing: 6) {
+                    ForEach(finding.kinds, id: \.self) { k in
+                        Chip(text: k.rawValue, symbol: k.symbol, tint: k.isHighRisk ? Theme.danger : Theme.review)
+                    }
+                    if !finding.samples.isEmpty {
+                        Text(finding.samples.joined(separator: " · ")).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    }
+                }
+            }
+            Spacer()
+            if let d = finding.date { Text(d.formatted(date: .abbreviated, time: .omitted)).font(.caption).foregroundStyle(.secondary) }
+            Text(ByteFormat.string(finding.bytes)).font(.caption).monospacedDigit().foregroundStyle(.secondary)
+            PathActions(path: finding.path)
+        }
+        .padding(.vertical, 6)
+        .task(id: finding.path) {
+            guard !DemoData.isEnabled else { thumb = DemoData.swatch(for: finding.path, size: 160).map { NSImage(cgImage: $0, size: .zero) }; return }
+            let path = finding.path
+            let cg = await Task.detached { MediaLibrary.thumbnail(path, maxPixels: 160) }.value
+            thumb = cg.map { NSImage(cgImage: $0, size: .zero) }
+        }
     }
 }

@@ -41,6 +41,14 @@ public struct ConvertResult: Sendable {
     public let pixelSize: CGSize
     public let message: String
     public var ok: Bool { output != nil }
+
+    public init(source: String, output: String?, bytes: Int64, pixelSize: CGSize, message: String) {
+        self.source = source
+        self.output = output
+        self.bytes = bytes
+        self.pixelSize = pixelSize
+        self.message = message
+    }
 }
 
 public enum MediaConverter {

@@ -100,7 +100,9 @@ enum DemoData {
     /// A soft gradient "photo" for an item, so demo screenshots never show real images.
     static func swatch(for id: String, size: Int) -> CGImage? {
         var h: UInt64 = 1469598103934665603
-        for b in id.utf8 { h = (h ^ UInt64(b)) &* 1099511628211 }
+        // Burst shots ("…burst-2#3.heic") share one look so similar-photo demos read as similar.
+        let key = id.split(separator: "#").first.map(String.init) ?? id
+        for b in key.utf8 { h = (h ^ UInt64(b)) &* 1099511628211 }
         let hue = Double(h % 360) / 360, hue2 = Double((h >> 9) % 360) / 360
         let w = size, ht = size * 3 / 4
         guard let ctx = CGContext(data: nil, width: w, height: ht, bitsPerComponent: 8, bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(),
@@ -242,5 +244,110 @@ enum DemoData {
                     tier: .keep, bytes: 21 * gb, action: .advice, symbol: "lock.fill",
                     facts: [Fact("Managed by", "Photos")]),
         ]
+    }
+
+    // MARK: Apps (fictional apps and paths)
+
+    static var appFootprints: [AppFootprint] {
+        guard !isWelcome else { return [] }
+        func app(_ name: String, _ id: String, _ version: String, used: Double?, appGB: Double, managed: Bool = false,
+                 data: [(String, String, Double)]) -> AppFootprint {
+            let a = InstalledApp(path: "/Applications/\(name).app", name: name, bundleID: id, version: version,
+                                 lastUsed: used.map { ago(days: $0) }, isManaged: managed)
+            let items = data.map { folder, kind, g in
+                FindingItem(path: p("Library/\(folder)/\(folder.hasPrefix("Containers") || folder.hasPrefix("Preferences") ? id : name)"),
+                            bytes: Int64(g * 1e9), note: kind, lastUsed: used.map { ago(days: $0) }, usedBy: name, quickSafe: false)
+            }
+            return AppFootprint(app: a, appBytes: Int64(appGB * 1e9), leftovers: items)
+        }
+        return [
+            app("StudioCut Pro", "com.example.studiocut", "11.2", used: 240, appGB: 6.8,
+                data: [("Application Support", "app data", 9.4), ("Caches", "cache", 2.1), ("Preferences", "settings", 0.0004)]),
+            app("PixelForge", "com.example.pixelforge", "4.0.3", used: 3, appGB: 2.4,
+                data: [("Application Support", "app data", 3.2), ("Caches", "cache", 1.4), ("Saved Application State", "saved window state", 0.002)]),
+            app("Chatterly", "com.example.chatterly", "2.18", used: 0.2, appGB: 0.6,
+                data: [("Containers", "sandbox container", 4.1), ("Caches", "cache", 0.8)]),
+            app("CodeHarbor", "com.example.codeharbor", "1.94", used: 1, appGB: 1.1,
+                data: [("Application Support", "app data", 1.9), ("Caches", "cache", 0.9), ("Logs", "logs", 0.12)]),
+            app("Notely", "com.example.notely", "8.1", used: 400, appGB: 0.3, managed: true,
+                data: [("Containers", "sandbox container", 1.6)]),
+            app("StreamBox", "com.example.streambox", "5.6", used: 120, appGB: 0.4,
+                data: [("Caches", "cache", 1.2), ("HTTPStorages", "web storage", 0.05)]),
+            app("Trackly", "com.example.trackly", "3.3", used: nil, appGB: 0.2, data: []),
+        ]
+    }
+
+    static var orphanItems: [FindingItem] {
+        guard !isWelcome else { return [] }
+        return [
+            ("Containers/com.example.oldgame", 3.8, 300), ("Application Support/com.example.videoconverter", 1.6, 520),
+            ("Caches/com.example.photoeditor", 0.9, 410), ("Application Support/com.example.vpnclient", 0.31, 95),
+        ].map { path, g, days in
+            let id = (path as NSString).lastPathComponent
+            let folder = (path as NSString).deletingLastPathComponent
+            return FindingItem(path: p("Library/" + path), bytes: Int64(g * 1e9), note: "\(folder) · no app with this ID is installed",
+                               selectedByDefault: false, lastUsed: ago(days: days), usedBy: id, quickSafe: false)
+        }
+    }
+
+    static var startupItems: [StartupItem] {
+        guard !isWelcome else { return [] }
+        return [
+            StartupItem(path: p("Library/LaunchAgents/com.example.chatterly.helper.plist"), label: "com.example.chatterly.helper",
+                        program: "/Applications/Chatterly.app/Contents/Library/LoginItems/Helper.app/Contents/MacOS/Helper",
+                        kind: .userAgent, runsAtLoad: true, keepAlive: false, owner: "Chatterly", modified: ago(days: 30)),
+            StartupItem(path: p("Library/LaunchAgents/com.example.updater.plist"), label: "com.example.updater",
+                        program: "/Users/Shared/ExampleUpdater/updater", kind: .userAgent, runsAtLoad: true, keepAlive: true, owner: nil, modified: ago(days: 400)),
+            StartupItem(path: "/Library/LaunchAgents/com.example.studiocut.agent.plist", label: "com.example.studiocut.agent",
+                        program: "/Applications/StudioCut Pro.app/Contents/Resources/Agent", kind: .systemAgent, runsAtLoad: true, keepAlive: false,
+                        owner: "StudioCut Pro", modified: ago(days: 240)),
+            StartupItem(path: "/Library/LaunchDaemons/com.example.vpn.daemon.plist", label: "com.example.vpn.daemon",
+                        program: "/Library/PrivilegedHelperTools/com.example.vpn.daemon", kind: .daemon, runsAtLoad: true, keepAlive: true,
+                        owner: nil, modified: ago(days: 95)),
+        ]
+    }
+
+    static var browserExtensions: [BrowserExtension] {
+        guard !isWelcome else { return [] }
+        let base = p("Library/Application Support/Google/Chrome/Default/Extensions/")
+        return [
+            BrowserExtension(browser: "Google Chrome", name: "Password Vault", identifier: "abcdefghijklmnopabcdefghijklmnop", version: "4.12",
+                             path: base + "abcdefghijklmnopabcdefghijklmnop", permissions: ["<all_urls>", "storage"]),
+            BrowserExtension(browser: "Google Chrome", name: "Coupon Finder", identifier: "bcdefghijklmnopabcdefghijklmnopa", version: "2.0.1",
+                             path: base + "bcdefghijklmnopabcdefghijklmnopa", permissions: ["<all_urls>", "tabs", "cookies"]),
+            BrowserExtension(browser: "Google Chrome", name: "Dark Reader Lite", identifier: "cdefghijklmnopabcdefghijklmnopab", version: "1.3",
+                             path: base + "cdefghijklmnopabcdefghijklmnopab", permissions: ["storage", "activeTab"]),
+            BrowserExtension(browser: "Firefox", name: "Tab Grouper", identifier: "tabgrouper@example.com", version: "0.9",
+                             path: p("Library/Application Support/Firefox/Profiles/demo.default/extensions"), permissions: []),
+        ]
+    }
+
+    static var sensitiveFindings: [SensitiveFinding] {
+        guard !isWelcome else { return [] }
+        return [
+            SensitiveFinding(path: p("Desktop/Screenshot 2026-09-14 at 10.02.11.png"), bytes: 1_400_000, kinds: [.card],
+                             samples: ["•••• 4242"], date: ago(days: 54)),
+            SensitiveFinding(path: p("Downloads/IMG_0841.PNG"), bytes: 2_100_000, kinds: [.code], samples: ["one-time code"], date: ago(days: 20)),
+            SensitiveFinding(path: p("Pictures/Screenshots/Screenshot 2026-07-02 at 21.40.55.png"), bytes: 900_000, kinds: [.seed],
+                             samples: ["recovery phrase"], date: ago(days: 128)),
+            SensitiveFinding(path: p("Desktop/Screenshot 2026-10-30 at 08.15.20.png"), bytes: 640_000, kinds: [.qr, .email], samples: [], date: ago(days: 8)),
+        ]
+    }
+
+    static var similarResult: SimilarResult? {
+        guard !isWelcome else { return nil }
+        func burst(_ n: Int, shots: Int, days: Double) -> [MediaItem] {
+            (0..<shots).map { i in
+                MediaItem(origin: .file(p("Pictures/Beach/burst-\(n)#\(i).heic")), kind: .photo,
+                          date: ago(days: days).addingTimeInterval(Double(i) * 2), duration: 0, bytes: 3_100_000 + Int64(i) * 40_000)
+            }
+        }
+        let groups = [burst(1, shots: 5, days: 40), burst(2, shots: 3, days: 41), burst(3, shots: 4, days: 95)].map { items in
+            SimilarGroup(items: items, keep: items[1].id, sharpness: [:])
+        }
+        let blurry = (0..<6).map { i in
+            MediaItem(origin: .file(p("Pictures/Hiking/blurry-\(i).heic")), kind: .photo, date: ago(days: 150 + Double(i)), duration: 0, bytes: 2_800_000)
+        }
+        return SimilarResult(groups: groups, blurry: blurry, sharpness: [:], checked: 1_842)
     }
 }

@@ -25,13 +25,14 @@ public enum Shell {
 
     /// Runs a tool without a shell (arguments are never interpolated) and collects its output.
     public static func run(_ executable: String, _ args: [String], timeout: TimeInterval = 120,
-                           captureStderr: Bool = true) async -> ShellResult {
+                           captureStderr: Bool = true, in directory: URL? = nil) async -> ShellResult {
         await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
                 let process = Process()
                 process.executableURL = URL(fileURLWithPath: executable)
                 process.arguments = args
                 process.environment = environment
+                if let directory { process.currentDirectoryURL = directory }
                 process.standardInput = FileHandle.nullDevice
                 let outPipe = Pipe()
                 let errPipe = Pipe()

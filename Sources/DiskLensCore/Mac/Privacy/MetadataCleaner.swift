@@ -73,9 +73,6 @@ public enum MetadataCleaner {
 
     public static func clean(_ report: MetadataReport, level: Level, mode: Mode) async -> Result {
         let original = URL(fileURLWithPath: report.path)
-        guard report.canClean else {
-            return Result(path: report.path, output: nil, ok: false, message: "Office files can't be cleaned yet. Use File → Inspect Document in Office.", reencoded: false)
-        }
         if mode == .replaceOriginal, !Executor.isSafeToTrash(report.path, home: NSHomeDirectory()) {
             return Result(path: report.path, output: nil, ok: false, message: "This file is outside the folders DiskLens may change.", reencoded: false)
         }
@@ -88,7 +85,7 @@ public enum MetadataCleaner {
             case .image: reencoded = try cleanImage(original, to: temp, level: level)
             case .video: try await cleanVideo(original, to: temp, level: level)
             case .pdf: try cleanPDF(original, to: temp)
-            case .office: break
+            case .office: try await cleanOffice(original, to: temp)
             }
         } catch {
             try? FileManager.default.removeItem(at: temp)
@@ -198,6 +195,38 @@ public enum MetadataCleaner {
         }
         doc.documentAttributes = attrs
         guard doc.write(to: out) else { throw CocoaError(.fileWriteUnknown) }
+    }
+
+    /// Office files are zip archives; the author, editor and company live in docProps/core.xml and app.xml.
+    static func cleanOffice(_ url: URL, to out: URL) async throws {
+        try FileManager.default.copyItem(at: url, to: out)
+        let work = FileManager.default.temporaryDirectory.appendingPathComponent("disklens-office-\(UUID().uuidString.prefix(8))")
+        try FileManager.default.createDirectory(at: work.appendingPathComponent("docProps"), withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: work) }
+        var changed: [String] = []
+        for (entry, tags) in [("docProps/core.xml", ["dc:creator", "cp:lastModifiedBy"]), ("docProps/app.xml", ["Company", "Manager"])] {
+            let xml = await Shell.run("/usr/bin/unzip", ["-p", url.path, entry], timeout: 15, captureStderr: false).out
+            guard !xml.isEmpty else { continue }
+            let cleaned = blank(tags, in: xml)
+            if cleaned != xml {
+                try cleaned.write(to: work.appendingPathComponent(entry), atomically: true, encoding: .utf8)
+                changed.append(entry)
+            }
+        }
+        guard !changed.isEmpty else { return }
+        let r = await Shell.run("/usr/bin/zip", ["-q", out.path] + changed, timeout: 30, in: work)
+        guard r.ok else { throw CocoaError(.fileWriteUnknown, userInfo: [NSLocalizedDescriptionKey: "zip: \(r.err)"]) }
+    }
+
+    /// Empties the text of each `<tag>…</tag>` (attributes kept).
+    static func blank(_ tags: [String], in xml: String) -> String {
+        var s = xml
+        for tag in tags {
+            let pattern = "(<\(NSRegularExpression.escapedPattern(for: tag))(\\s[^>]*)?>)[^<]*(</\(NSRegularExpression.escapedPattern(for: tag))>)"
+            guard let re = try? NSRegularExpression(pattern: pattern) else { continue }
+            s = re.stringByReplacingMatches(in: s, range: NSRange(s.startIndex..., in: s), withTemplate: "$1$3")
+        }
+        return s
     }
 
     static func uniqueCopyURL(for url: URL) -> URL {

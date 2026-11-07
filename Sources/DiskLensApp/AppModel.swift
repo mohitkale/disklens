@@ -4,7 +4,7 @@ import Observation
 import SwiftUI
 
 enum AppSection: String, CaseIterable, Identifiable {
-    case overview, cleanup, duplicates, privacy, media, explore, history
+    case overview, cleanup, duplicates, apps, privacy, media, explore, history
     var id: Self { self }
 
     var title: String {
@@ -12,6 +12,7 @@ enum AppSection: String, CaseIterable, Identifiable {
         case .overview: "Overview"
         case .cleanup: "Clean Up"
         case .duplicates: "Duplicates"
+        case .apps: "Apps"
         case .privacy: "Privacy Shield"
         case .media: "Media Studio"
         case .explore: "Explore"
@@ -24,6 +25,7 @@ enum AppSection: String, CaseIterable, Identifiable {
         case .overview: "gauge.with.dots.needle.67percent"
         case .cleanup: "sparkles"
         case .duplicates: "doc.on.doc"
+        case .apps: "square.grid.2x2"
         case .privacy: "hand.raised"
         case .media: "film.stack"
         case .explore: "folder"
@@ -127,6 +129,9 @@ final class AppModel {
     private(set) var folderCache: [String: [FolderEntry]] = [:]
 
     private let store = HistoryStore()
+    /// Free space read once a minute for the menu bar (nil until the first read).
+    var liveFree: Int64?
+    var isMonitoring = false
 
     // MARK: Privacy Shield state (logic in AppModel+Privacy.swift)
     var privacyFolders: [String] = PrivacyScanner.defaultFolders
@@ -136,6 +141,11 @@ final class AppModel {
     var privacySelection: Set<String> = []
     var privacyFilter: PrivacyFilter = .all
     var privacyJob: PrivacyJob?
+    var sensitiveFindings: [SensitiveFinding] = []
+    var sensitiveScanned: Date?
+    var sensitiveChecked = 0
+    var sensitiveProgress: (done: Int, total: Int)?
+    var sensitiveSelection: Set<String> = []
 
     // MARK: Media Studio state (logic in AppModel+Media.swift)
     var mediaTool: MediaTool = .events
@@ -158,6 +168,29 @@ final class AppModel {
     var convertFolder = URL(fileURLWithPath: NSHomeDirectory() + "/Downloads/DiskLens Converted")
     var convertResults: [ConvertResult] = []
     var convertProgress: (done: Int, total: Int)?
+    var mediaOrder: [String: [String]] = [:]
+    var musicMood: MusicGenerator.Mood?
+    var enhanceItems: [MediaItem] = []
+    var enhancePreviewID: String?
+    var enhanceOptions = EnhanceOptions()
+    var enhanceBefore: CGImage?
+    var enhanceAfter: CGImage?
+    var enhanceRemovePrivate = true
+    var enhanceFolder = URL(fileURLWithPath: NSHomeDirectory() + "/Pictures/DiskLens Enhanced")
+    var enhanceResults: [ConvertResult] = []
+    var enhanceProgress: (done: Int, total: Int)?
+
+    // MARK: Apps state (logic in AppModel+Apps.swift)
+    var appsTab: AppsTab = .uninstall
+    var appFootprints: [AppFootprint] = []
+    var appsScanned: Date?
+    var appsProgress: (done: Int, total: Int)?
+    var appSearch = ""
+    var expandedApps: Set<String> = []
+    var orphanItems: [FindingItem] = []
+    var orphanSelection: Set<String> = []
+    var startupItems: [StartupItem] = []
+    var browserExtensions: [BrowserExtension] = []
 
     // MARK: Duplicates state (logic in AppModel+Duplicates.swift)
     var duplicateGroups: [DuplicateGroup] = []
@@ -165,6 +198,12 @@ final class AppModel {
     var isFindingDuplicates = false
     var duplicateSelection: Set<String> = []
     var duplicateRoots: [String] = DuplicateFinder.defaultRoots
+    var duplicatesTab: DuplicatesTab = .identical
+    var similarResult: SimilarResult?
+    var similarProgress: (done: Int, total: Int)?
+    var similarSourceLabel: String?
+    var similarSelection: Set<String> = []
+    var similarScanned: Date?
 
     init() {
         if DemoData.isEnabled {
@@ -191,6 +230,21 @@ final class AppModel {
             convertFiles = mediaItems.isEmpty ? [] : ["Pictures/Birthday/IMG_2210.heic", "Pictures/Birthday/IMG_2214.heic", "Movies/party-clip.mov"].map { NSHomeDirectory() + "/" + $0 }
             imageOptions.resize = .longestSide(2048)
             imageOptions.maxBytes = 1_000_000
+            appFootprints = DemoData.appFootprints
+            appsScanned = appFootprints.isEmpty ? nil : Date()
+            expandedApps = Set(appFootprints.prefix(1).map(\.id))
+            orphanItems = DemoData.orphanItems
+            orphanSelection = Set(orphanItems.prefix(2).map(\.path))
+            startupItems = DemoData.startupItems
+            browserExtensions = DemoData.browserExtensions
+            sensitiveFindings = DemoData.sensitiveFindings
+            sensitiveScanned = sensitiveFindings.isEmpty ? nil : Date()
+            similarResult = DemoData.similarResult
+            similarSourceLabel = similarResult == nil ? nil : "Photos library"
+            similarScanned = similarResult == nil ? nil : Date()
+            selectSuggestedSimilar()
+            enhanceItems = Array(mediaItems.filter { $0.kind == .photo }.prefix(6))
+            enhancePreviewID = enhanceItems.first?.id
             return
         }
         snapshots = store.loadSnapshots()
@@ -444,6 +498,9 @@ final class AppModel {
         }
         store.saveLog(log)
         pruneDuplicates()
+        pruneApps()
+        pruneSensitive()
+        pruneSimilar()
         plan?.phase = .finished
     }
 
@@ -456,8 +513,29 @@ final class AppModel {
 
     // MARK: Insights (computed locally from scans and findings)
 
+    /// Categories that grew by more than 1 GB between the last two scans, largest first.
+    var growthSinceLastScan: [(name: String, bytes: Int64)] {
+        guard snapshots.count >= 2 else { return [] }
+        let prev = snapshots[snapshots.count - 2], last = snapshots[snapshots.count - 1]
+        let before = Dictionary(prev.categories.map { ($0.name, $0.bytes) }, uniquingKeysWith: +)
+        return last.categories.compactMap { c in
+            guard let old = before[c.name] else { return nil }
+            let delta = c.bytes - old
+            return delta > 1_000_000_000 ? (c.name, delta) : nil
+        }.sorted { $0.bytes > $1.bytes }
+    }
+
     var insights: [Insight] {
         var list: [Insight] = []
+        let grew = growthSinceLastScan
+        if let top = grew.first, snapshots.count >= 2 {
+            let since = snapshots[snapshots.count - 2].date.formatted(.dateTime.day().month())
+            list.append(Insight(id: "grew", symbol: "chart.line.uptrend.xyaxis", tint: Theme.review,
+                                title: "\(top.name) grew \(ByteFormat.string(top.bytes)) since \(since)",
+                                detail: grew.count > 1 ? "Also growing: " + grew.dropFirst().prefix(3).map { "\($0.name) +\(ByteFormat.string($0.bytes))" }.joined(separator: ", ") + "."
+                                                       : "The biggest change between your last two scans.",
+                                action: .section(.history), actionLabel: "Compare"))
+        }
         if let first = snapshots.first, let last = snapshots.last, first.id != last.id {
             let delta = last.free - first.free
             if abs(delta) > 1_000_000_000 {
