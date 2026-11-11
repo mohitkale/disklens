@@ -40,14 +40,16 @@ public struct SimilarResult: Sendable {
 
 public enum SimilarPhotos {
     /// Groups photos taken within `windowMinutes` of each other that look alike (bursts, retakes).
-    public static func groups(_ items: [MediaItem], windowMinutes: Double = 3, threshold: Float = 0.12,
+    /// 0.3 was measured on real photos: the same shot re-framed, brightened or softened scored 0.13–0.34,
+    /// different photos of the same style 0.46 and up. The time window keeps unrelated look-alikes apart.
+    public static func groups(_ items: [MediaItem], windowMinutes: Double = 3, threshold: Float = 0.3,
                               image: @Sendable (MediaItem) async -> CGImage?,
                               progress: @escaping @Sendable (Int, Int) -> Void) async -> [SimilarGroup] {
         await analyze(items, windowMinutes: windowMinutes, threshold: threshold, image: image, progress: progress).groups
     }
 
     /// Similar groups plus blurry photos, in one pass over the photos.
-    public static func analyze(_ items: [MediaItem], windowMinutes: Double = 3, threshold: Float = 0.12,
+    public static func analyze(_ items: [MediaItem], windowMinutes: Double = 3, threshold: Float = 0.3,
                                image: @Sendable (MediaItem) async -> CGImage?,
                                progress: @escaping @Sendable (Int, Int) -> Void) async -> SimilarResult {
         let photos = items.filter { $0.kind == .photo }.sorted { $0.date < $1.date }
@@ -122,12 +124,13 @@ public enum SimilarPhotos {
         return sq / n - mean * mean
     }
 
-    /// Photos noticeably blurrier than the rest of the set (and blurry in absolute terms).
-    public static func blurry(_ scores: [String: Double], absolute: Double = 60) -> Set<String> {
+    /// Photos far blurrier than the rest of the set: under a fifth of the median sharpness, and soft in absolute terms.
+    /// (Sharp photos score in the thousands at this size; a badly focused or shaken one, a few hundred or less.)
+    public static func blurry(_ scores: [String: Double], absolute: Double = 300) -> Set<String> {
         let sorted = scores.values.sorted()
-        guard !sorted.isEmpty else { return [] }
+        guard sorted.count >= 3 else { return [] }
         let median = sorted[sorted.count / 2]
-        return Set(scores.filter { $0.value < absolute && $0.value < median * 0.35 }.map(\.key))
+        return Set(scores.filter { $0.value < absolute && $0.value < median * 0.2 }.map(\.key))
     }
 }
 

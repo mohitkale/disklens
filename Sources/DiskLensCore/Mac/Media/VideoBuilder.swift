@@ -157,6 +157,33 @@ public enum VideoBuilder {
     }
 
     /// A title card: large title and a smaller subtitle on a soft gradient.
+    /// Music volume over time as points with strictly increasing times: a fade in, a dip to a quarter
+    /// while each clip plays its own sound (0.3 s transitions), and a fade out over the last 3 s.
+    static func musicEnvelope(duration: Double, volume: Float, clips: [(start: Double, length: Double)]) -> [(time: Double, volume: Float)] {
+        guard duration > 0.1 else { return [] }
+        let fadeIn = min(1.5, duration / 3), fadeOut = min(3, duration / 3), dip = 0.3
+        func base(_ t: Double) -> Double { min(1, t / fadeIn, (duration - t) / fadeOut) }
+        func duck(_ t: Double) -> Double {
+            var factor = 1.0
+            for c in clips {
+                let a = c.start, b = c.start + c.length
+                let inside: Double
+                if t <= a - dip || t >= b + dip { inside = 0 }
+                else if t < a { inside = (t - (a - dip)) / dip }
+                else if t <= b { inside = 1 }
+                else { inside = ((b + dip) - t) / dip }
+                factor = min(factor, 1 - 0.75 * inside)
+            }
+            return factor
+        }
+        var times: Set<Double> = [0, fadeIn, duration - fadeOut, duration]
+        for c in clips { for t in [c.start - dip, c.start, c.start + c.length, c.start + c.length + dip] { times.insert(t) } }
+        let sorted = times.filter { $0 >= 0 && $0 <= duration }.map { ($0 * 600).rounded() / 600 }
+        var out: [(time: Double, volume: Float)] = []
+        for t in Set(sorted).sorted() { out.append((t, Float(max(0, base(t) * duck(t))) * volume)) }
+        return out
+    }
+
     public static func titleCard(_ title: String, subtitle: String?, size: CGSize) -> CIImage {
         let w = Int(size.width), h = Int(size.height)
         let ctx = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(),
@@ -214,13 +241,14 @@ public enum VideoBuilder {
                 cursor = cursor + piece
             }
             let p = AVMutableAudioMixInputParameters(track: mTrack)
-            let fade = CMTime(seconds: 1.5, preferredTimescale: 600)
-            p.setVolumeRamp(fromStartVolume: 0, toEndVolume: musicVolume, timeRange: CMTimeRange(start: .zero, duration: fade))
-            for clip in clips {   // duck the music while a clip plays its own sound
-                p.setVolume(musicVolume * 0.25, at: clip.at)
-                p.setVolume(musicVolume, at: clip.at + clip.range.duration)
+            // One combined curve (fade in, duck under clip sound, fade out): AVFoundation rejects overlapping ramps.
+            let envelope = musicEnvelope(duration: CMTimeGetSeconds(duration), volume: musicVolume,
+                                         clips: clips.map { (CMTimeGetSeconds($0.at), CMTimeGetSeconds($0.range.duration)) })
+            for (a, b) in zip(envelope, envelope.dropFirst()) {
+                p.setVolumeRamp(fromStartVolume: a.volume, toEndVolume: b.volume,
+                                timeRange: CMTimeRange(start: CMTime(seconds: a.time, preferredTimescale: 600),
+                                                       end: CMTime(seconds: b.time, preferredTimescale: 600)))
             }
-            p.setVolumeRamp(fromStartVolume: musicVolume, toEndVolume: 0, timeRange: CMTimeRange(start: duration - fade - fade, duration: fade + fade))
             params.append(p)
         }
         if !clips.isEmpty, let cTrack = comp.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid) {

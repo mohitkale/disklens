@@ -41,7 +41,8 @@ struct DiskLensApp: App {
             SettingsView()
         }
 
-        MenuBarExtra(isInserted: Binding(get: { showMenuBar && !DemoData.isEnabled }, set: { showMenuBar = $0 })) {
+        // Demo runs (screenshots) hide it and must never write that back into the user's real settings.
+        MenuBarExtra(isInserted: Binding(get: { showMenuBar && !DemoData.isEnabled }, set: { if !DemoData.isEnabled { showMenuBar = $0 } })) {
             MenuBarContent().environment(model)
         } label: {
             MenuBarLabel().environment(model)

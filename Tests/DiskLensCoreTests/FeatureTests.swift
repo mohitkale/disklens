@@ -202,4 +202,20 @@ final class ScreenshotDetectionTests: XCTestCase {
         XCTAssertEqual(found, ["IMG_0001.png", "Screenshot 2026-01-01 at 10.00.00.png"])
     }
 }
+
+final class MusicEnvelopeTests: XCTestCase {
+    /// Overlapping volume ramps crash AVFoundation: clips inside the fades and back-to-back clips must still give a clean curve.
+    func testEnvelopeHasIncreasingTimesAndDucks() {
+        let env = VideoBuilder.musicEnvelope(duration: 10, volume: 0.7, clips: [(0.5, 1.5), (2.0, 1.0), (8.5, 1.2), (3.1, 0.2)])
+        XCTAssertEqual(env.first?.time, 0)
+        XCTAssertEqual(env.first?.volume, 0)
+        XCTAssertEqual(env.last?.time, 10)
+        XCTAssertEqual(env.last?.volume, 0)
+        for (a, b) in zip(env, env.dropFirst()) { XCTAssertLessThan(a.time, b.time) }
+        XCTAssertTrue(env.allSatisfy { $0.volume >= 0 && $0.volume <= 0.7 })
+        let mid = env.first { $0.time == 2.5 } ?? env.min { abs($0.time - 2.5) < abs($1.time - 2.5) }!
+        XCTAssertLessThan(mid.volume, 0.7 * 0.3)
+        XCTAssertTrue(VideoBuilder.musicEnvelope(duration: 0, volume: 1, clips: []).isEmpty)
+    }
+}
 #endif
