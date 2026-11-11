@@ -244,6 +244,7 @@ private struct PlanRow: View {
     private var whatHappens: String {
         switch entry.finding.action {
         case .trash: "Moves \(entry.items.count) item\(entry.items.count == 1 ? "" : "s") to the Trash"
+        case .removeDownload: "Removes the download of \(entry.items.count) file\(entry.items.count == 1 ? "" : "s"); \(entry.items.count == 1 ? "it stays" : "they stay") in iCloud"
         case .command: "Runs `\(entry.finding.action.commandLine ?? "")`"
         default: ""
         }

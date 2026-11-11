@@ -4,15 +4,17 @@ import Observation
 import SwiftUI
 
 enum AppSection: String, CaseIterable, Identifiable {
-    case overview, cleanup, duplicates, apps, privacy, media, explore, history
+    case overview, cleanup, shrink, duplicates, apps, privacy, pdf, media, explore, history
     var id: Self { self }
 
     var title: String {
         switch self {
         case .overview: "Overview"
         case .cleanup: "Clean Up"
+        case .shrink: "Shrink"
         case .duplicates: "Duplicates"
         case .apps: "Apps"
+        case .pdf: "PDF Tools"
         case .privacy: "Privacy Shield"
         case .media: "Media Studio"
         case .explore: "Explore"
@@ -24,8 +26,10 @@ enum AppSection: String, CaseIterable, Identifiable {
         switch self {
         case .overview: "gauge.with.dots.needle.67percent"
         case .cleanup: "sparkles"
+        case .shrink: "arrow.down.right.and.arrow.up.left"
         case .duplicates: "doc.on.doc"
         case .apps: "square.grid.2x2"
+        case .pdf: "doc.richtext"
         case .privacy: "hand.raised"
         case .media: "film.stack"
         case .explore: "folder"
@@ -55,7 +59,7 @@ struct PlanEntry: Identifiable {
     var status: Status = .checking
 
     var bytes: Int64 {
-        finding.action == .trash && !finding.items.isEmpty ? items.reduce(0) { $0 + $1.bytes } : finding.bytes
+        finding.action.usesItems && !finding.items.isEmpty ? items.reduce(0) { $0 + $1.bytes } : finding.bytes
     }
 
     var isReady: Bool { if case .ready = status { true } else { false } }
@@ -180,6 +184,33 @@ final class AppModel {
     var enhanceResults: [ConvertResult] = []
     var enhanceProgress: (done: Int, total: Int)?
 
+    // MARK: Shrink, PDF Tools and Cut Out state (logic in AppModel+Shrink.swift)
+    var shrinkCandidates: [ShrinkCandidate] = []
+    var shrinkScanned: Date?
+    var isScanningShrink = false
+    var shrinkResults: [String: FileOutcome] = [:]
+    var shrinking: Set<String> = []
+    var shrinkTrashed: Set<String> = []
+    var pdfTool: PDFTool = .compress
+    var pdfFiles: [String] = []
+    var pdfLevel: PDFTools.Level = .medium
+    var pdfTarget: Int64?
+    var pdfResults: [String: FileOutcome] = [:]
+    var pdfProgress: (done: Int, total: Int)?
+    var pdfSplitRanges = ""
+    var redactTerms = ""
+    var redactSuggestions: [String] = []
+    var cutoutItems: [MediaItem] = []
+    var cutoutPreviewID: String?
+    var cutoutBackground: CutoutBackground = .transparent
+    var cutoutCustomColor = CGColor(red: 0.16, green: 0.47, blue: 0.84, alpha: 1)
+    var cutoutPreview: CGImage?
+    var cutoutNoSubject = false
+    var cutoutResults: [ConvertResult] = []
+    var cutoutProgress: (done: Int, total: Int)?
+    var cutoutFolder = URL(fileURLWithPath: NSHomeDirectory() + "/Pictures/DiskLens Cut Out")
+    var videoTargetBytes: Int64?
+
     // MARK: Apps state (logic in AppModel+Apps.swift)
     var appsTab: AppsTab = .uninstall
     var appFootprints: [AppFootprint] = []
@@ -243,6 +274,13 @@ final class AppModel {
             similarSourceLabel = similarResult == nil ? nil : "Photos library"
             similarScanned = similarResult == nil ? nil : Date()
             selectSuggestedSimilar()
+            shrinkCandidates = DemoData.shrinkCandidates
+            shrinkScanned = shrinkCandidates.isEmpty ? nil : Date()
+            shrinkResults = DemoData.shrinkResults
+            pdfFiles = DemoData.pdfFiles
+            pdfResults = DemoData.pdfResults
+            cutoutItems = DemoData.cutoutItems
+            cutoutPreviewID = cutoutItems.first?.id
             enhanceItems = Array(mediaItems.filter { $0.kind == .photo }.prefix(6))
             enhancePreviewID = enhanceItems.first?.id
             return
@@ -405,7 +443,7 @@ final class AppModel {
     /// What Quick Clean would take care of, from the last full scan.
     var quickCleanEstimate: Int64 {
         findings.filter { $0.quickClean && $0.action.isExecutable && completed[$0.id] == nil }.reduce(0) { total, f in
-            total + (f.action == .trash ? f.items.filter(\.quickSafe).reduce(0) { $0 + $1.bytes } : f.bytes)
+            total + (f.action.usesItems ? f.items.filter(\.quickSafe).reduce(0) { $0 + $1.bytes } : f.bytes)
         }
     }
 
@@ -422,7 +460,7 @@ final class AppModel {
     // MARK: Cleanup plans (review → confirm → run)
 
     func review(_ findings: [Finding]) {
-        let entries = findings.map { PlanEntry(finding: $0, items: $0.action == .trash ? selectedItems($0) : $0.items) }
+        let entries = findings.map { PlanEntry(finding: $0, items: $0.action.usesItems ? selectedItems($0) : $0.items) }
         plan = CleanupPlan(kind: .selection, phase: .review, entries: entries)
         Task { await preflightPlan() }
     }
@@ -501,6 +539,7 @@ final class AppModel {
         pruneApps()
         pruneSensitive()
         pruneSimilar()
+        pruneShrink()
         plan?.phase = .finished
     }
 
@@ -602,6 +641,17 @@ final class AppModel {
                                 title: "\(located) file\(located == 1 ? "" : "s") reveal where \(located == 1 ? "it was" : "they were") taken",
                                 detail: "Anyone you send the original to can see the exact spot. Remove it in Privacy Shield.",
                                 action: .section(.privacy), actionLabel: "Review"))
+        }
+        if shrinkScanned == nil, lastFullScan != nil {
+            list.append(Insight(id: "shrink", symbol: "arrow.down.right.and.arrow.up.left", tint: Theme.brandStart,
+                                title: "Big videos and PDFs could be much smaller",
+                                detail: "Screen recordings and scanned PDFs are often 5–20× bigger than they need to be. Shrink saves checked, smaller copies.",
+                                action: .section(.shrink), actionLabel: "Find big files"))
+        } else if shrinkEstimatedSaving > 1_000_000_000 {
+            list.append(Insight(id: "shrink", symbol: "arrow.down.right.and.arrow.up.left", tint: Theme.brandStart,
+                                title: "About \(ByteFormat.string(shrinkEstimatedSaving)) to save by shrinking big files",
+                                detail: "\(shrinkCandidates.count) videos, PDFs and images could be much smaller without looking different.",
+                                action: .section(.shrink), actionLabel: "Shrink"))
         }
         if let temp = findings.first(where: { $0.id == "temp" }) {
             list.append(Insight(id: "temp", symbol: "arrow.clockwise.circle.fill", tint: Theme.brandStart,

@@ -4,13 +4,14 @@ import Foundation
 import Photos
 
 enum MediaTool: String, CaseIterable, Identifiable {
-    case events, collage, enhance, convert
+    case events, collage, enhance, cutout, convert
     var id: Self { self }
     var title: String {
         switch self {
         case .events: "Events → Video"
         case .collage: "Collage"
         case .enhance: "Enhance"
+        case .cutout: "Cut Out"
         case .convert: "Convert & Resize"
         }
     }
@@ -19,6 +20,7 @@ enum MediaTool: String, CaseIterable, Identifiable {
         case .events: "film"
         case .collage: "square.grid.3x3.square"
         case .enhance: "wand.and.stars"
+        case .cutout: "person.crop.rectangle"
         case .convert: "arrow.triangle.2.circlepath"
         }
     }
@@ -262,7 +264,8 @@ extension AppModel {
 
     /// Real thumbnails, or generated swatches in demo mode (so screenshots never show real photos).
     func thumbnail(_ item: MediaItem, maxPixels: Int) async -> CGImage? {
-        if DemoData.isEnabled { return DemoData.swatch(for: item.id, size: min(maxPixels, 600)) }
+        // Demo: Apple's sample account pictures are real images (not personal); everything else is a swatch.
+        if DemoData.isEnabled, item.filePath?.hasPrefix("/Library/User Pictures/") != true { return DemoData.swatch(for: item.id, size: min(maxPixels, 600)) }
         return await MediaLibrary.image(for: item, maxPixels: maxPixels)
     }
 
@@ -308,9 +311,13 @@ extension AppModel {
         for path in convertFiles {
             let result: ConvertResult
             if Self.isVideo(path) {
+                if !makeGIF, let target = videoTargetBytes {
+                    result = await VideoCompressor.compress(path, targetBytes: target, removePrivateInfo: imageOptions.removePrivateInfo, into: convertFolder)
+                } else {
                 result = makeGIF ? await MediaConverter.videoToGIF(path, into: convertFolder)
                     : await MediaConverter.convertVideo(path, preset: videoPreset, removePrivateInfo: imageOptions.removePrivateInfo,
                                                         into: convertFolder) { _ in }
+                }
             } else {
                 let options = imageOptions
                 let folder = convertFolder

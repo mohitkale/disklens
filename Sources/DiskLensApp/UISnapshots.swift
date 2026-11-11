@@ -70,6 +70,13 @@ enum UISnapshots {
             await model.refreshEnhancePreview()
             try? await Task.sleep(for: .seconds(2))
             shot("media-enhance")
+            model.mediaTool = .cutout
+            await model.refreshCutoutPreview()
+            try? await Task.sleep(for: .seconds(2))
+            shot("media-cutout")
+            model.section = .pdf
+            try? await Task.sleep(for: .seconds(2))
+            shot("pdf")
             model.section = .apps
             for tab in [AppsTab.leftovers, .startup, .extensions] {
                 model.appsTab = tab

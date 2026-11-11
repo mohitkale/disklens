@@ -43,12 +43,14 @@
 |---|---|
 | **Full scan** | Measures the whole drive from scratch: categories, hidden space, macOS system, free space (1–3 min, read-only). |
 | **Quick Scan + Quick Clean** | A ~15 s check of caches, logs and leftovers that nothing depends on. It shows a review and waits for your confirmation. |
-| **Clean Up** | Filter by Safe / Review first / Leave alone, use **Select all**, open each item's details (*what depends on this*), then **Review Selected…** → **Clean**. |
+| **Clean Up** | Includes Downloads you're done with (exact duplicate downloads, archives you've already unpacked, installers for installed apps, unfinished downloads), iCloud Drive files you can keep online only ("Remove Download", nothing deleted), and Time Machine local snapshots. Filter by Safe / Review first / Leave alone, use **Select all**, open each item's details (*what depends on this*), then **Review Selected…** → **Clean**. |
 | **Privacy Shield** | Finds photos, videos, PDFs and Office files that reveal **where they were taken** (GPS), **which device made them** (model and serial numbers) or **your name**, and shows places your files point to, such as home. It removes that information without re-compressing photos, and keeps their orientation and date. Originals go to the Trash, or you can keep them and save clean copies. |
+| **Shrink** | Finds the videos, PDFs and images that could be much smaller (screen recordings, camera videos, scanned PDFs, uncompressed PNGs) with an estimate for each, and saves a checked smaller copy next to the original. Videos are verified to play for their full length; a copy is kept only if it saves at least 20%. The original moves to the Trash only after a separate review. |
+| **PDF Tools** | **Compress** (images downsampled with text and links kept; scanned PDFs re-encoded and made searchable; optional size limit, and an honest "already compact" when a PDF can't shrink), **merge**, **split** by page ranges, **make searchable** (on-device text recognition) and **redact**, which really removes the words (the page under the black box is replaced, and the result is searched again to check). Nothing is uploaded. |
 | **Sensitive screenshots** | Reads the text in your screenshots on this Mac (Apple's Vision framework) and flags card numbers (Luhn-checked), one-time codes, passwords, ID numbers, IBANs, crypto recovery phrases and QR codes, with blurred previews. |
 | **Duplicates** | Identical files (compared byte for byte, not by name) across your home folder, with a suggested copy to keep. APFS clones are detected, so you're never promised space you won't get. **Similar & blurry photos:** bursts and retakes that look alike, and out-of-focus shots, in a folder or your Photos library; the sharpest of each set is kept. |
 | **Apps** | **Uninstall** an app together with the caches, containers, settings and logs it leaves in your Library, each listed with its size. **Leftovers** of apps you already removed. **Startup items** (login items, background helpers) and **browser extensions**, with the ones that can read every website flagged. |
-| **Media Studio** | **Events → Video:** photos and clips are grouped into events by date and place (from a folder or your Photos library), then turned into one 1080p video with an opening title, gentle zoom-and-pan on photos, crossfades, and optional music (ducked under clip sound), in landscape, portrait or square. Then optionally **free up space**: originals go to the Trash or Recently Deleted, after you confirm. **Collage:** grid or album rows in 1:1, 4:5, 9:16, 4:3 or 16:9. **Drag to reorder** and **trim clips**, and pick a **built-in music** mood (generated on your Mac, free to use anywhere) or your own file. **Enhance:** automatic light and colour fixes, noise reduction and sharpening, with a before/after slider; saves copies. **Convert & Resize:** HEIC/JPEG/PNG/TIFF; longest side, percentage, crop to a shape, or "under 1 MB"; videos to HEVC/H.264 at 4K–540p, or GIF. Location is removed by default. |
+| **Media Studio** | **Events → Video:** photos and clips are grouped into events by date and place (from a folder or your Photos library), then turned into one 1080p video with an opening title, gentle zoom-and-pan on photos, crossfades, and optional music (ducked under clip sound), in landscape, portrait or square. Then optionally **free up space**: originals go to the Trash or Recently Deleted, after you confirm. **Collage:** grid or album rows in 1:1, 4:5, 9:16, 4:3 or 16:9. **Drag to reorder** and **trim clips**, and pick a **built-in music** mood (generated on your Mac, free to use anywhere) or your own file. **Cut Out:** remove the background of people, pets and objects (transparent PNG or a solid colour). **Enhance:** automatic light and colour fixes, noise reduction and sharpening, with a before/after slider; saves copies. **Convert & Resize:** HEIC/JPEG/PNG/TIFF; longest side, percentage, crop to a shape, or "under 1 MB"; videos to HEVC/H.264 at 4K–540p, to a size limit (under 16 MB for WhatsApp, 25 MB for email), or GIF. Location is removed by default. |
 | **Menu bar, alerts and Finder** | Free space in the menu bar with Quick Clean and Scan Now, an optional notification when space runs low, open at login, and **Finder → Services → Make Private Copy (DiskLens)** to save a copy of any photo, video, PDF or Office file without location and camera details. |
 | **Insights** | What grew since your last scan, free-space trend and forecast, biggest safe win, projects untouched for 6+ months, simulators last used months ago, apps you haven't opened, space hidden by macOS privacy. |
 | **Explore** | Browse any folder by size, filter by name, or search every subfolder with Spotlight. Show in Finder or copy the path. |
@@ -57,7 +59,7 @@
 ### Take the tour
 
 <p align="center">
-  <img src="docs/tour.gif" alt="DiskLens tour: welcome, overview, Clean Up, review before cleaning, Quick Clean, Privacy Shield, Duplicates, similar photos, Apps, Media Studio, Explore, History" width="900">
+  <img src="docs/tour.gif" alt="DiskLens tour: welcome, overview, Clean Up, review before cleaning, Quick Clean, Privacy Shield, Shrink, PDF Tools, Duplicates, similar photos, Apps, Media Studio, Explore, History" width="900">
 </p>
 
 ### Screenshots
@@ -84,6 +86,14 @@
     <td><b>Duplicates</b>: identical files, with a suggested copy to keep<br><img src="docs/screenshots/duplicates.png" alt="Duplicates"></td>
   </tr>
   <tr>
+    <td><b>Shrink</b>: big videos, PDFs and images, with what each could save<br><img src="docs/screenshots/shrink.png" alt="Shrink big files"></td>
+    <td><b>PDF Tools</b>: compress, merge, split, make searchable, redact<br><img src="docs/screenshots/pdf.png" alt="PDF Tools"></td>
+  </tr>
+  <tr>
+    <td><b>Cut Out</b>: remove the background on your Mac<br><img src="docs/screenshots/media-cutout.png" alt="Remove background"></td>
+    <td><b>Leftovers</b>: data from apps you already removed<br><img src="docs/screenshots/apps-leftovers.png" alt="Leftovers of removed apps"></td>
+  </tr>
+  <tr>
     <td><b>Similar & blurry photos</b>: keep the sharpest shot of each burst<br><img src="docs/screenshots/duplicates-similar.png" alt="Similar and blurry photos"></td>
     <td><b>Enhance</b>: automatic fixes with a before/after slider<br><img src="docs/screenshots/media-enhance.png" alt="Enhance photos"></td>
   </tr>
@@ -93,7 +103,7 @@
   </tr>
   <tr>
     <td><b>Startup items</b>: what starts with your Mac, and what's missing<br><img src="docs/screenshots/apps-startup.png" alt="Startup items"></td>
-    <td><b>Leftovers</b>: data from apps you already removed<br><img src="docs/screenshots/apps-leftovers.png" alt="Leftovers of removed apps"></td>
+    <td></td>
   </tr>
   <tr>
     <td><b>History</b>: free and used space over time, with a reading for any scan<br><img src="docs/screenshots/history.png" alt="History"></td>

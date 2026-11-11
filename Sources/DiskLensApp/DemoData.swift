@@ -350,4 +350,57 @@ enum DemoData {
         }
         return SimilarResult(groups: groups, blurry: blurry, sharpness: [:], checked: 1_842)
     }
+
+    // MARK: Shrink, PDF Tools, Cut Out (fictional paths; Apple's sample animal pictures for Cut Out)
+
+    static var shrinkCandidates: [ShrinkCandidate] {
+        guard !isWelcome else { return [] }
+        return [
+            ShrinkCandidate(path: p("Movies/Screen Recording 2026-10-02 at 14.10.33.mov"), kind: .video, bytes: 6_400 * mb, estimate: 980 * mb,
+                            detail: "1080p · 48 min · 18 Mbps", modified: ago(days: 36)),
+            ShrinkCandidate(path: p("Movies/Trip to the hills/GX010114.MP4"), kind: .video, bytes: 4_100 * mb, estimate: 1_250 * mb,
+                            detail: "4K · 9 min · 60 Mbps", modified: ago(days: 120)),
+            ShrinkCandidate(path: p("Downloads/Home loan agreement (scanned).pdf"), kind: .pdf, bytes: 212 * mb, estimate: nil,
+                            detail: "64 pages · 3 MB per page · scanned or pictures", modified: ago(days: 300)),
+            ShrinkCandidate(path: p("Desktop/Product demo final v3.mov"), kind: .video, bytes: 1_900 * mb, estimate: 410 * mb,
+                            detail: "1080p · 12 min · 21 Mbps", modified: ago(days: 8)),
+            ShrinkCandidate(path: p("Documents/Design/hero-banner-master.png"), kind: .image, bytes: 46 * mb, estimate: 7 * mb,
+                            detail: "PNG, uncompressed: HEIC keeps the look at a fraction of the size", modified: ago(days: 60)),
+            ShrinkCandidate(path: p("Documents/Annual report 2025.pdf"), kind: .pdf, bytes: 38 * mb, estimate: nil,
+                            detail: "120 pages · 324 KB per page", modified: ago(days: 200)),
+        ]
+    }
+
+    static var shrinkResults: [String: FileOutcome] {
+        guard !isWelcome else { return [:] }
+        return [
+            p("Downloads/Home loan agreement (scanned).pdf"): FileOutcome(ok: true, outputs: [p("Downloads/Home loan agreement (scanned) (compressed).pdf")],
+                                                                         before: 212 * mb, after: 9 * mb, message: "212 MB → 9 MB",
+                                                                         method: "pages re-encoded, text recognised so it stays searchable"),
+            p("Documents/Annual report 2025.pdf"): FileOutcome(ok: false, outputs: [], before: 38 * mb, after: 38 * mb,
+                                                              message: "This PDF is mostly text and already compact, so it can't get meaningfully smaller."),
+        ]
+    }
+
+    static var pdfFiles: [String] {
+        guard !isWelcome else { return [] }
+        return [p("Downloads/Home loan agreement (scanned).pdf"), p("Documents/Annual report 2025.pdf"), p("Downloads/Visa application form.pdf")]
+    }
+
+    static var pdfResults: [String: FileOutcome] {
+        guard !isWelcome else { return [:] }
+        var r = shrinkResults
+        r[p("Downloads/Visa application form.pdf")] = FileOutcome(ok: true, outputs: [p("Downloads/Visa application form (compressed).pdf")],
+                                                                before: 14 * mb, after: 2_600_000, message: "14 MB → 3 MB",
+                                                                method: "images downsampled, text and links kept")
+        return r
+    }
+
+    static var cutoutItems: [MediaItem] {
+        guard !isWelcome else { return [] }
+        let dir = "/Library/User Pictures/Animals"
+        return ((try? FileManager.default.contentsOfDirectory(atPath: dir)) ?? []).sorted().prefix(6).map {
+            MediaItem(origin: .file(dir + "/" + $0), kind: .photo, date: ago(days: 2), bytes: 600_000)
+        }
+    }
 }

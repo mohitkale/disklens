@@ -217,6 +217,8 @@ struct FindingCard: View {
                     switch finding.action {
                     case .trash: Chip(text: "Undo from Trash", symbol: "arrow.uturn.backward", tint: Theme.safe,
                                       help: "Items are moved to the Trash. You can put them back until you empty the Trash.")
+                    case .removeDownload: Chip(text: "Stays in iCloud", symbol: "icloud", tint: Theme.safe,
+                                               help: "Nothing is deleted. The files stay in iCloud and download again when you open them.")
                     case .command: Chip(text: "Can't be undone", symbol: "exclamationmark.triangle", tint: Theme.review,
                                         help: "Removed by the owning tool, not via the Trash. See How to get it back in the details.")
                     default: EmptyView()
@@ -231,11 +233,11 @@ struct FindingCard: View {
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 2) {
-                let none = finding.action == .trash && !finding.items.isEmpty && model.selectedItems(finding).isEmpty
-                Text(ByteFormat.string(none ? finding.bytes : finding.action == .trash && !finding.items.isEmpty ? model.bytes(finding) : finding.bytes))
+                let none = finding.action.usesItems && !finding.items.isEmpty && model.selectedItems(finding).isEmpty
+                Text(ByteFormat.string(none ? finding.bytes : finding.action.usesItems && !finding.items.isEmpty ? model.bytes(finding) : finding.bytes))
                     .font(.system(size: 22, weight: .bold, design: .rounded)).monospacedDigit()
                     .foregroundStyle(none ? .secondary : .primary)
-                if finding.action == .trash, !finding.items.isEmpty {
+                if finding.action.usesItems, !finding.items.isEmpty {
                     Text(none ? "nothing preselected" : "\(model.selectedItems(finding).count) of \(finding.items.count) selected")
                         .font(.caption2).foregroundStyle(.secondary)
                 }
@@ -246,7 +248,7 @@ struct FindingCard: View {
     private var items: some View {
         DisclosureGroup(isExpanded: $showItems) {
             VStack(alignment: .leading, spacing: 0) {
-                if finding.action == .trash {
+                if finding.action.usesItems {
                     HStack {
                         Button("Select all") { model.setAll(true, in: finding) }.help("Tick every item in this list")
                         Button("Select none") { model.setAll(false, in: finding) }.help("Untick every item in this list")
@@ -268,7 +270,7 @@ struct FindingCard: View {
                     ForEach(finding.items) { item in
                         Divider().gridCellUnsizedAxes(.horizontal)
                         GridRow(alignment: .center) {
-                            if finding.action == .trash {
+                            if finding.action.usesItems {
                                 Toggle("", isOn: Binding(get: { model.isSelected(item, in: finding) },
                                                          set: { model.setSelected($0, item: item, in: finding) }))
                                     .labelsHidden().toggleStyle(.checkbox).disabled(result != nil)
@@ -308,13 +310,13 @@ struct FindingCard: View {
             }
             Spacer()
             switch finding.action {
-            case .trash, .command:
+            case .trash, .command, .removeDownload:
                 Button { model.review([finding]) } label: {
                     Label("Review…", systemImage: "list.bullet.clipboard")
                 }
                 .buttonStyle(SoftButtonStyle(tint: finding.tier.color))
                 .help("Review just this item before cleaning it")
-                .disabled(finding.action == .trash && model.selectedItems(finding).isEmpty)
+                .disabled(finding.action.usesItems && model.selectedItems(finding).isEmpty)
             case let .launchApp(bundleID):
                 Button("Start Docker Desktop") { model.launch(bundleID: bundleID) }.buttonStyle(SoftButtonStyle())
                     .help("Open Docker Desktop, then scan again to see what's inside its disk image")

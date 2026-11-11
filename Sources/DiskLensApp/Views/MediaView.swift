@@ -16,20 +16,21 @@ struct MediaView: View {
                 HStack(alignment: .center) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Media Studio").font(.system(size: 26, weight: .bold, design: .rounded))
-                        Text("Turn events into videos, make collages, enhance photos, and convert or resize. All on this Mac.")
+                        Text("Turn events into videos, make collages, enhance photos, cut out subjects, and convert or resize. All on this Mac.")
                             .foregroundStyle(.secondary)
                     }
                     Spacer()
                     Picker("Tool", selection: $model.mediaTool) {
                         ForEach(MediaTool.allCases) { Label($0.title, systemImage: $0.symbol).tag($0) }
                     }
-                    .pickerStyle(.segmented).labelsHidden().frame(maxWidth: 560).handCursor()
+                    .pickerStyle(.segmented).labelsHidden().frame(maxWidth: 640).handCursor()
                     .help("Choose a tool")
                 }
                 switch model.mediaTool {
                 case .events: EventsPanel()
                 case .collage: CollagePanel()
                 case .enhance: EnhancePanel()
+                case .cutout: CutOutPanel()
                 case .convert: ConvertPanel()
                 }
             }
@@ -543,6 +544,113 @@ private struct BeforeAfter: View {
     }
 }
 
+// MARK: - Cut Out
+
+private struct CutOutPanel: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        @Bindable var model = model
+        HStack(alignment: .top, spacing: 20) {
+            VStack(alignment: .leading, spacing: 14) {
+                SectionHeader(title: "Remove background", subtitle: "Cuts out the people, pets or objects in a photo using Apple's on-device subject detection. Saves copies.", symbol: "person.crop.rectangle")
+                Divider()
+                Text("Background").font(.callout).foregroundStyle(.secondary)
+                Picker("", selection: $model.cutoutBackground) {
+                    ForEach(CutoutBackground.allCases) { Text($0.label).tag($0) }
+                }
+                .pickerStyle(.segmented).labelsHidden().handCursor()
+                .help("Transparent saves a PNG; a colour saves a JPEG, handy for profile and ID photos")
+                if model.cutoutBackground == .color {
+                    ColorPicker("Colour", selection: Binding(get: { Color(cgColor: model.cutoutCustomColor) },
+                                                            set: { model.cutoutCustomColor = NSColor($0).cgColor }))
+                }
+                Divider()
+                HStack {
+                    Button { model.addCutoutPhotos() } label: { Label("Add Photos…", systemImage: "plus") }
+                        .buttonStyle(SoftButtonStyle(tint: .secondary))
+                    if let event = model.selectedEvent {
+                        Button("Use “\(event.title)”") { Task { await model.useEventForCutout(event) } }
+                            .buttonStyle(.textLink).font(.callout).lineLimit(1)
+                    }
+                }
+                if !model.cutoutItems.isEmpty {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(model.cutoutItems) { item in
+                                Button {
+                                    model.cutoutPreviewID = item.id
+                                    Task { await model.refreshCutoutPreview() }
+                                } label: {
+                                    MediaThumb(item: item, size: 64)
+                                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Theme.brandStart, lineWidth: model.cutoutSelected?.id == item.id ? 3 : 0))
+                                }
+                                .buttonStyle(.plain).handCursor().help("Preview \(item.name)")
+                                .contextMenu { Button("Remove") { model.cutoutItems.removeAll { $0.id == item.id } } }
+                            }
+                        }
+                    }
+                    Text("Saved to " + model.cutoutFolder.path.replacingOccurrences(of: NSHomeDirectory(), with: "~")).font(.caption).foregroundStyle(.secondary)
+                    if let p = model.cutoutProgress {
+                        ProgressView(value: Double(p.done), total: Double(max(p.total, 1)))
+                    } else {
+                        Button { Task { await model.saveCutouts() } } label: {
+                            Label("Save \(model.cutoutItems.count) Cut-Out\(model.cutoutItems.count == 1 ? "" : "s")", systemImage: "square.and.arrow.down")
+                        }
+                        .buttonStyle(GradientButtonStyle(large: true)).disabled(DemoData.isEnabled)
+                    }
+                    let saved = model.cutoutResults.filter(\.ok)
+                    if !saved.isEmpty {
+                        HStack {
+                            Label("\(saved.count) saved", systemImage: "checkmark.circle.fill").foregroundStyle(Theme.safe)
+                            Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting(saved.compactMap(\.output).map { URL(fileURLWithPath: $0) }) }
+                                .buttonStyle(.textLink)
+                        }.font(.callout)
+                    }
+                    ForEach(model.cutoutResults.filter { !$0.ok }, id: \.source) { r in
+                        Label("\((r.source as NSString).lastPathComponent): \(r.message)", systemImage: "exclamationmark.triangle").font(.caption).foregroundStyle(Theme.review)
+                    }
+                }
+            }
+            .premiumCard()
+            .frame(width: 380)
+            .onChange(of: model.cutoutBackground) { Task { await model.refreshCutoutPreview() } }
+            .onChange(of: model.cutoutCustomColor) { Task { await model.refreshCutoutPreview() } }
+
+            VStack(spacing: 10) {
+                if let preview = model.cutoutPreview {
+                    Image(decorative: preview, scale: 1).resizable().aspectRatio(contentMode: .fit)
+                        .background(Checkerboard().clipShape(RoundedRectangle(cornerRadius: 10)))
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                } else {
+                    VStack(spacing: 10) {
+                        Image(systemName: model.cutoutNoSubject ? "questionmark.square.dashed" : "person.crop.rectangle").font(.system(size: 40)).foregroundStyle(.secondary)
+                        Text(model.cutoutNoSubject ? "No clear subject found in this photo. Try one with a person, pet or object in focus."
+                                                   : "Add photos to see the cut-out.").foregroundStyle(.secondary).multilineTextAlignment(.center)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 360)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .premiumCard()
+        }
+    }
+}
+
+/// The grey-and-white squares image editors use to show transparency.
+private struct Checkerboard: View {
+    var body: some View {
+        Canvas { ctx, size in
+            let s: CGFloat = 12
+            for x in stride(from: 0, to: size.width, by: s) {
+                for y in stride(from: 0, to: size.height, by: s) where (Int(x / s) + Int(y / s)) % 2 == 0 {
+                    ctx.fill(Path(CGRect(x: x, y: y, width: s, height: s)), with: .color(.gray.opacity(0.18)))
+                }
+            }
+        }
+    }
+}
+
 // MARK: - Collage
 
 private struct CollagePanel: View {
@@ -745,6 +853,12 @@ private struct ConvertPanel: View {
                     Picker("", selection: $model.videoPreset) {
                         ForEach(MediaConverter.VideoPreset.allCases) { Text($0.label).tag($0) }
                     }.labelsHidden().disabled(model.makeGIF).handCursor().help("Resolution and codec for converted videos")
+                    Picker("Size limit", selection: $model.videoTargetBytes) {
+                        Text("No limit").tag(Int64?.none)
+                        ForEach(VideoCompressor.presets, id: \.bytes) { Text($0.label).tag(Int64?.some($0.bytes)) }
+                    }
+                    .disabled(model.makeGIF).handCursor()
+                    .help("Fits each video under this size (H.264, plays everywhere). The resolution is lowered only as much as needed.")
                     Toggle("Make an animated GIF instead (first 6 seconds)", isOn: $model.makeGIF).toggleStyle(.checkbox).handCursor()
                 }
                 Toggle(isOn: $model.imageOptions.removePrivateInfo) {

@@ -74,6 +74,8 @@ struct ContentView: View {
             switch model.section {
             case .overview: OverviewView()
             case .cleanup: CleanupView()
+            case .shrink: ShrinkView()
+            case .pdf: PDFToolsView()
             case .duplicates: DuplicatesView()
             case .apps: AppsView()
             case .privacy: PrivacyView()
@@ -97,6 +99,8 @@ struct ContentView: View {
         switch section {
         case .overview: "Drive usage, insights and categories"
         case .cleanup: "Everything that can be cleaned, with what depends on it. Safe total shown on the right."
+        case .shrink: "Make big videos, PDFs and photos smaller, and see which files would save the most"
+        case .pdf: "Compress, merge, split, make searchable and redact PDFs, on this Mac"
         case .duplicates: "Find identical files and similar or blurry photos, and keep the best one"
         case .apps: "Uninstall apps with everything they leave behind, find leftovers of removed apps, and see what starts with your Mac"
         case .privacy: "See what your photos, videos and documents reveal (location, device, names) and remove it"

@@ -77,13 +77,18 @@ public enum CleanupAction: Codable, Hashable, Sendable {
     case open(path: String)
     /// Nothing to run — the detail text says what to do.
     case advice
+    /// Keep iCloud Drive files in iCloud but remove their download from this Mac (they download again when opened).
+    case removeDownload
 
     public var isExecutable: Bool {
         switch self {
-        case .trash, .command: true
+        case .trash, .command, .removeDownload: true
         default: false
         }
     }
+
+    /// Acts on the items the user ticks (rather than running one command).
+    public var usesItems: Bool { self == .trash || self == .removeDownload }
 
     public var commandLine: String? {
         guard case let .command(tool, args) = self else { return nil }
@@ -138,7 +143,8 @@ public struct Finding: Identifiable, Codable, Hashable, Sendable {
     }
 
     /// Trash moves can be undone until the Trash is emptied; tool commands can't.
-    public var isReversible: Bool { action == .trash }
+    /// Undoable: the Trash can be emptied later, and removed downloads come back when the file is opened.
+    public var isReversible: Bool { action == .trash || action == .removeDownload }
 
     public func bytes(selected: Set<String>) -> Int64 {
         guard action == .trash, !items.isEmpty else { return bytes }

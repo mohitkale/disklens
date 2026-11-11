@@ -42,6 +42,16 @@ public enum Executor {
                     problems.append("Couldn't confirm \(item.name) isn't in use. Try again, or deselect it.")
                 }
             }
+        case .removeDownload:
+            if selected.isEmpty { problems.append("Nothing is selected.") }
+            for item in selected where !ICloudFiles.isInICloudDrive(item.path) {
+                problems.append("\(item.name) isn't in iCloud Drive.")
+            }
+            for item in selected where DiskMeasure.exists(item.path) {
+                if let open = await DiskMeasure.openFiles(under: item.path, timeout: 20), !open.isEmpty {
+                    problems.append("\(item.name) is open in \(RuleKit.processes(open)).")
+                }
+            }
         case let .command(tool, args):
             if !FileManager.default.isExecutableFile(atPath: tool) {
                 problems.append("\((tool as NSString).lastPathComponent) isn't installed.")
@@ -85,6 +95,22 @@ public enum Executor {
             let output = (r.out + r.err).split(separator: "\n").suffix(12).joined(separator: "\n")
             return ExecutionResult(outcome: r.ok ? .freed : .failed, bytes: r.ok ? freed : 0,
                                    trashed: [], failures: r.ok ? [] : ["Exit code \(r.status)"], output: output)
+
+        case .removeDownload:
+            var done: [String] = []
+            var failures: [String] = []
+            var bytes: Int64 = 0
+            for item in selected where ICloudFiles.isInICloudDrive(item.path) && DiskMeasure.exists(item.path) {
+                do {
+                    try FileManager.default.evictUbiquitousItem(at: URL(fileURLWithPath: item.path))
+                    done.append(item.path)
+                    bytes += item.bytes
+                } catch {
+                    failures.append("\(item.name): \(error.localizedDescription)")
+                }
+            }
+            return ExecutionResult(outcome: done.isEmpty ? .failed : .freed, bytes: bytes, trashed: [], failures: failures,
+                                   output: done.isEmpty ? "" : "\(done.count) file(s) kept in iCloud, download removed")
 
         default:
             return ExecutionResult(outcome: .failed, bytes: 0, trashed: [], failures: ["Nothing to run."], output: "")

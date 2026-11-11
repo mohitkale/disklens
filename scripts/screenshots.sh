@@ -40,16 +40,19 @@ sheet cleanup-selected review-sheet 04
 sheet overview quick-clean-sheet 05
 frame privacy 06
 sheet privacy privacy-sheet 07
-frame duplicates 08
-frame duplicates-similar 09
-frame apps 10
-frame apps-extensions 11
-frame media 12
-frame media-collage 13
-frame media-enhance 14
-frame media-convert 15
-frame explore 16
-frame history 17
+frame shrink 08
+frame pdf 09
+frame duplicates 10
+frame duplicates-similar 11
+frame apps 12
+frame apps-extensions 13
+frame media 14
+frame media-collage 15
+frame media-enhance 16
+frame media-cutout 17
+frame media-convert 18
+frame explore 19
+frame history 20
 ffmpeg -loglevel error -y -framerate 0.4 -i "$FR/%02d.png" \
   -vf "split[a][b];[a]palettegen=max_colors=256:stats_mode=diff[p];[b][p]paletteuse=dither=sierra2_4a:diff_mode=rectangle" \
   -loop 0 docs/tour.gif

@@ -101,9 +101,9 @@ public enum RuleCatalog {
     public static let all: [CleanupRule] = [
         SimulatorRuntimesRule(), SimulatorDevicesRule(), XcodeDataRule(),
         DockerRule(), NodeModulesRule(), AppCachesRule(), NpmCacheRule(), ToolCachesRule(),
-        AndroidSdkRule(), EditorLeftoversRule(), HomebrewRule(), DownloadsRule(),
+        AndroidSdkRule(), EditorLeftoversRule(), HomebrewRule(), DownloadsTidyRule(), DownloadsRule(), ICloudDownloadsRule(),
         PackageCachesRule(), PackageToolCommandsRule(), InstallersRule(), MailDownloadsRule(), LargeFilesRule(),
-        LogsRule(), UnusedAppsRule(), TrashAndTempRule(), DeviceBackupsRule(), AppManagedDataRule(),
+        LogsRule(), UnusedAppsRule(), LocalSnapshotsRule(), TrashAndTempRule(), DeviceBackupsRule(), AppManagedDataRule(),
     ]
 }
 #endif
