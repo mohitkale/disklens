@@ -11,7 +11,10 @@ let package = Package(
         .executable(name: "DiskLens", targets: ["DiskLensApp"]),
     ],
     targets: [
-        .target(name: "DiskLensCore"),
+        // Reads the SSD's NVMe health log through IOKit (macOS only; empty elsewhere).
+        .target(name: "DiskLensHealth", linkerSettings: [.linkedFramework("IOKit", .when(platforms: [.macOS])),
+                                                         .linkedFramework("CoreFoundation")]),
+        .target(name: "DiskLensCore", dependencies: [.target(name: "DiskLensHealth", condition: .when(platforms: [.macOS]))]),
         .executableTarget(name: "DiskLensApp", dependencies: ["DiskLensCore"]),
         .testTarget(name: "DiskLensCoreTests", dependencies: ["DiskLensCore"]),
     ]

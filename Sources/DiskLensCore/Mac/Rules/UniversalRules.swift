@@ -172,7 +172,7 @@ struct LargeFilesRule: CleanupRule {
         let items = index.largeFiles.compactMap { path -> FindingItem? in
             let url = URL(fileURLWithPath: path)
             guard let values = try? url.resourceValues(forKeys: [.totalFileAllocatedSizeKey, .localizedTypeDescriptionKey, .contentModificationDateKey]),
-                  let size = values.totalFileAllocatedSize else { return nil }
+                  let size = values.totalFileAllocatedSize, size >= 1_000_000_000 else { return nil }
             let opened = AppIndex.lastUsed(path)
             let source = AppIndex.downloadSource(path)
             let folder = ((path as NSString).deletingLastPathComponent).replacingOccurrences(of: ctx.home, with: "~")

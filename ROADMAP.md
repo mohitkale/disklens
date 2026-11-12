@@ -8,6 +8,7 @@ Have an idea or want something sooner? [Open an issue](https://github.com/mohitk
 
 - **1.0**: full scan, Quick Scan / Quick Clean, Safe / Review first / Leave alone, dependency details for every item, the review sheet with safety checks, Explore with Spotlight search, History with trends, a universal app.
 - **1.2**: **Media Studio**: events → video (title, zoom-and-pan, crossfades, music, free up space afterwards), collages, and converting and resizing photos and videos (formats, sizes, target file size, GIF).
+- **1.5**: **Health** (drive health from the SSD's own report, "System Data" explained, archive to an external drive with verified copies, watched folders), big files untouched for a year, Messages attachments, a weekly summary notification.
 - **1.4**: **Shrink** (biggest files with estimated savings, checked smaller copies), **PDF Tools** (compress with an honest "already compact", merge, split, make searchable, real redaction), videos to a **size limit**, **Cut Out** (remove background), **Downloads tidy-up**, iCloud Drive **Remove Download**, **Time Machine local snapshots**.
 - **1.3**: **Apps** (uninstaller with leftovers, leftovers of removed apps, startup items, browser extensions), **sensitive screenshots**, Office files cleaned in place, **similar and blurry photos**, **Enhance** with a before/after slider, clip **trim and reorder**, **built-in music**, the **menu bar** extra, **low-space notifications**, open at login, the Finder service **Make Private Copy**, and a "what grew since your last scan" insight.
 - **1.1**: **Privacy Shield** (what files reveal: GPS location, device and serial numbers, names; places your files point to; lossless removal with originals in the Trash) and **Duplicates** (content-based, detects APFS clones, suggests the copy to keep).
@@ -32,11 +33,10 @@ Have an idea or want something sooner? [Open an issue](https://github.com/mohitk
 - [x] Bundled royalty-free music tracks (1.3)
 - [x] Batch photo enhancement (exposure, colour, noise), with a before/after slider (1.3)
 
-### Next ideas (1.5: "Peace of mind")
-- [ ] A "System Data" explainer: what macOS lumps together there, with links to each cleanup
-- [ ] Archive to an external drive (verified copy before the original goes)
-- [ ] Large and old files in one review list; Messages attachments
-- [ ] Disk health (SMART), a weekly digest notification, watched folders
+### Next ideas
+- [ ] Scheduled Quick Scans while DiskLens is open (still never cleaning without you)
+- [ ] Health history: wear and lifetime writes over time
+- [ ] Archive restore: bring files back from a DiskLens Archive with a check
 
 ### Distribution
 - [ ] Notarized releases (no first-launch warning)

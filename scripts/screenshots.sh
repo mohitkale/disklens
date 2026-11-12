@@ -51,8 +51,9 @@ frame media-collage 15
 frame media-enhance 16
 frame media-cutout 17
 frame media-convert 18
-frame explore 19
-frame history 20
+frame health 19
+frame explore 20
+frame history 21
 ffmpeg -loglevel error -y -framerate 0.4 -i "$FR/%02d.png" \
   -vf "split[a][b];[a]palettegen=max_colors=256:stats_mode=diff[p];[b][p]paletteuse=dither=sierra2_4a:diff_mode=rectangle" \
   -loop 0 docs/tour.gif

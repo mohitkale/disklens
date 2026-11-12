@@ -4,7 +4,7 @@ import Observation
 import SwiftUI
 
 enum AppSection: String, CaseIterable, Identifiable {
-    case overview, cleanup, shrink, duplicates, apps, privacy, pdf, media, explore, history
+    case overview, cleanup, shrink, duplicates, apps, privacy, pdf, media, health, explore, history
     var id: Self { self }
 
     var title: String {
@@ -15,6 +15,7 @@ enum AppSection: String, CaseIterable, Identifiable {
         case .duplicates: "Duplicates"
         case .apps: "Apps"
         case .pdf: "PDF Tools"
+        case .health: "Health"
         case .privacy: "Privacy Shield"
         case .media: "Media Studio"
         case .explore: "Explore"
@@ -30,6 +31,7 @@ enum AppSection: String, CaseIterable, Identifiable {
         case .duplicates: "doc.on.doc"
         case .apps: "square.grid.2x2"
         case .pdf: "doc.richtext"
+        case .health: "heart.text.square"
         case .privacy: "hand.raised"
         case .media: "film.stack"
         case .explore: "folder"
@@ -211,6 +213,17 @@ final class AppModel {
     var cutoutFolder = URL(fileURLWithPath: NSHomeDirectory() + "/Pictures/DiskLens Cut Out")
     var videoTargetBytes: Int64?
 
+    // MARK: Health, archive and watched folders (logic in AppModel+Health.swift)
+    var diskHealth: DiskHealth?
+    var externalVolumes: [ExternalVolume] = []
+    var archiveVolume: ExternalVolume?
+    var archiveCustomFolder: URL?
+    var archiveItems: [String] = []
+    var archiveSizes: [String: Int64] = [:]
+    var archiveProgress: (fraction: Double, message: String)?
+    var archiveResult: ArchiveResult?
+    var watchedFolders: [WatchedFolder] = []
+
     // MARK: Apps state (logic in AppModel+Apps.swift)
     var appsTab: AppsTab = .uninstall
     var appFootprints: [AppFootprint] = []
@@ -280,11 +293,18 @@ final class AppModel {
             pdfFiles = DemoData.pdfFiles
             pdfResults = DemoData.pdfResults
             cutoutItems = DemoData.cutoutItems
+            diskHealth = DemoData.diskHealth
+            externalVolumes = DemoData.externalVolumes
+            archiveVolume = externalVolumes.first
+            archiveItems = DemoData.archiveItems.map(\.0)
+            archiveSizes = Dictionary(uniqueKeysWithValues: DemoData.archiveItems)
+            watchedFolders = DemoData.watchedFolders
             cutoutPreviewID = cutoutItems.first?.id
             enhanceItems = Array(mediaItems.filter { $0.kind == .photo }.prefix(6))
             enhancePreviewID = enhanceItems.first?.id
             return
         }
+        loadWatched()
         snapshots = store.loadSnapshots()
         log = store.loadLog()
         if let cached = store.loadFindings() {
@@ -540,6 +560,7 @@ final class AppModel {
         pruneSensitive()
         pruneSimilar()
         pruneShrink()
+        pruneArchive()
         plan?.phase = .finished
     }
 
@@ -641,6 +662,18 @@ final class AppModel {
                                 title: "\(located) file\(located == 1 ? "" : "s") reveal where \(located == 1 ? "it was" : "they were") taken",
                                 detail: "Anyone you send the original to can see the exact spot. Remove it in Privacy Shield.",
                                 action: .section(.privacy), actionLabel: "Review"))
+        }
+        if let h = diskHealth, h.verdict != .good {
+            list.insert(Insight(id: "health", symbol: "exclamationmark.triangle.fill", tint: h.verdict == .replace ? Theme.danger : Theme.review,
+                                title: "Your drive says: \(h.verdict.rawValue.lowercased())",
+                                detail: h.notes.first ?? "The drive's own health report shows a problem. Make sure your backups are current.",
+                                action: .section(.health), actionLabel: "See health"), at: 0)
+        }
+        if let biggest = systemDataParts.first, biggest.bytes > 20_000_000_000, lastFullScan != nil {
+            list.append(Insight(id: "systemdata", symbol: "square.stack.3d.up", tint: Theme.brandStart,
+                                title: "“System Data” explained: \(biggest.name) is the biggest part",
+                                detail: "\(ByteFormat.string(biggest.bytes)). See every part of System Data and what reduces each one.",
+                                action: .section(.health), actionLabel: "Explain"))
         }
         if shrinkScanned == nil, lastFullScan != nil {
             list.append(Insight(id: "shrink", symbol: "arrow.down.right.and.arrow.up.left", tint: Theme.brandStart,

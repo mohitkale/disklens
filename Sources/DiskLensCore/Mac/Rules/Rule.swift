@@ -102,7 +102,7 @@ public enum RuleCatalog {
         SimulatorRuntimesRule(), SimulatorDevicesRule(), XcodeDataRule(),
         DockerRule(), NodeModulesRule(), AppCachesRule(), NpmCacheRule(), ToolCachesRule(),
         AndroidSdkRule(), EditorLeftoversRule(), HomebrewRule(), DownloadsTidyRule(), DownloadsRule(), ICloudDownloadsRule(),
-        PackageCachesRule(), PackageToolCommandsRule(), InstallersRule(), MailDownloadsRule(), LargeFilesRule(),
+        PackageCachesRule(), PackageToolCommandsRule(), InstallersRule(), MailDownloadsRule(), MessagesAttachmentsRule(), LargeFilesRule(), OldFilesRule(),
         LogsRule(), UnusedAppsRule(), LocalSnapshotsRule(), TrashAndTempRule(), DeviceBackupsRule(), AppManagedDataRule(),
     ]
 }

@@ -77,6 +77,9 @@ enum UISnapshots {
             model.section = .pdf
             try? await Task.sleep(for: .seconds(2))
             shot("pdf")
+            model.section = .health
+            try? await Task.sleep(for: .seconds(2))
+            shot("health")
             model.section = .apps
             for tab in [AppsTab.leftovers, .startup, .extensions] {
                 model.appsTab = tab

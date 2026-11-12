@@ -76,6 +76,7 @@ struct ContentView: View {
             case .cleanup: CleanupView()
             case .shrink: ShrinkView()
             case .pdf: PDFToolsView()
+            case .health: HealthView()
             case .duplicates: DuplicatesView()
             case .apps: AppsView()
             case .privacy: PrivacyView()
@@ -100,6 +101,7 @@ struct ContentView: View {
         case .overview: "Drive usage, insights and categories"
         case .cleanup: "Everything that can be cleaned, with what depends on it. Safe total shown on the right."
         case .shrink: "Make big videos, PDFs and photos smaller, and see which files would save the most"
+        case .health: "Your drive's health, what \"System Data\" really is, archiving to an external drive, and watched folders"
         case .pdf: "Compress, merge, split, make searchable and redact PDFs, on this Mac"
         case .duplicates: "Find identical files and similar or blurry photos, and keep the best one"
         case .apps: "Uninstall apps with everything they leave behind, find leftovers of removed apps, and see what starts with your Mac"

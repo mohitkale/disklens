@@ -11,6 +11,9 @@ enum Prefs {
     static let lowSpaceGB = "lowSpaceGB"
     static let lastLowSpaceAlert = "lastLowSpaceAlert"
     static let servicesLevel = "servicesLevel"
+    static let weeklyDigest = "weeklyDigest"
+    static let lastDigest = "lastDigest"
+    static let lastDigestFree = "lastDigestFree"
 
     /// Notifications and login items need a real app bundle (not `swift run`).
     static var isBundled: Bool { Bundle.main.bundleURL.pathExtension == "app" }
@@ -62,12 +65,18 @@ extension AppModel {
     func startMonitoring() {
         guard !DemoData.isEnabled, !isMonitoring else { return }
         isMonitoring = true
+        Task { await refreshHealth() }
         Task { [weak self] in
+            var minutes = 0
             while !Task.isCancelled {
                 guard let self else { return }
                 let free = DiskMeasure.freeBytes()
                 self.liveFree = free
                 self.checkLowSpace(free)
+                await self.sendDigestIfDue()
+                // Watched folders are measured hourly (du can take a while on big folders).
+                minutes += 1
+                if minutes % 60 == 1 && !self.watchedFolders.isEmpty { await self.checkWatchedFolders() }
                 try? await Task.sleep(for: .seconds(60))
             }
         }
@@ -95,6 +104,7 @@ struct SettingsView: View {
     @AppStorage(Prefs.lowSpaceAlerts) private var lowSpaceAlerts = false
     @AppStorage(Prefs.lowSpaceGB) private var lowSpaceGB = 20
     @AppStorage(Prefs.servicesLevel) private var servicesLevel = MetadataCleaner.Level.identifying.rawValue
+    @AppStorage(Prefs.weeklyDigest) private var weeklyDigest = false
     @State private var openAtLogin = Prefs.isBundled && SMAppService.mainApp.status == .enabled
     @State private var loginMessage: String?
     @State private var notificationsDenied = false
@@ -110,7 +120,7 @@ struct SettingsView: View {
                     .help("Starts DiskLens quietly at login so the menu bar figure and low-space alerts work")
                 if let loginMessage { Text(loginMessage).font(.caption).foregroundStyle(.secondary) }
             }
-            Section("Low space") {
+            Section("Notifications") {
                 Toggle("Notify me when free space is low", isOn: $lowSpaceAlerts)
                     .disabled(!Prefs.isBundled)
                     .onChange(of: lowSpaceAlerts) { _, on in if on { requestNotifications() } }
@@ -119,6 +129,12 @@ struct SettingsView: View {
                 }
                 .disabled(!lowSpaceAlerts)
                 Text("Checked once a minute while DiskLens is open (in the menu bar or a window), and at most one notification a day. Nothing is ever cleaned automatically.")
+                    .font(.caption).foregroundStyle(.secondary)
+                Toggle("Weekly summary notification", isOn: $weeklyDigest)
+                    .disabled(!Prefs.isBundled)
+                    .onChange(of: weeklyDigest) { _, on in if on { requestNotifications() } }
+                    .help("Once a week: free space, how it changed, and what's safe to clean from your last scan. Nothing is cleaned automatically.")
+                Text("Watched folders (Health) also notify you here when one grows past the size you set.")
                     .font(.caption).foregroundStyle(.secondary)
                 if notificationsDenied {
                     Text("Notifications are turned off for DiskLens in System Settings → Notifications.").font(.caption).foregroundStyle(Theme.review)
@@ -156,7 +172,7 @@ struct SettingsView: View {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { granted, _ in
             Task { @MainActor in
                 notificationsDenied = !granted
-                if !granted { lowSpaceAlerts = false }
+                if !granted { lowSpaceAlerts = false; weeklyDigest = false }
             }
         }
     }

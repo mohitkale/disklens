@@ -320,9 +320,14 @@ struct FindingCard: View {
             case let .launchApp(bundleID):
                 Button("Start Docker Desktop") { model.launch(bundleID: bundleID) }.buttonStyle(SoftButtonStyle())
                     .help("Open Docker Desktop, then scan again to see what's inside its disk image")
-            case .open:
-                Button("Open Trash") { model.openTrash() }.buttonStyle(SoftButtonStyle())
-                    .help("Open the Trash in Finder. Empty it there when you're ready.")
+            case let .open(path):
+                if path.hasPrefix("x-apple.systempreferences:"), let url = URL(string: path) {
+                    Button("Open Storage Settings") { NSWorkspace.shared.open(url) }.buttonStyle(SoftButtonStyle())
+                        .help("Opens System Settings → General → Storage, where macOS lets you review and remove these safely")
+                } else {
+                    Button("Open Trash") { model.openTrash() }.buttonStyle(SoftButtonStyle())
+                        .help("Open the Trash in Finder. Empty it there when you're ready.")
+                }
             case .advice:
                 EmptyView()
             }

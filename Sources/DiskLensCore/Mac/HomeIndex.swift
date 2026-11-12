@@ -9,7 +9,8 @@ public struct HomeIndex: Sendable {
     public let gradleFiles: [String]
     public let largeFiles: [String]
 
-    public static let largeFileThreshold = "+1G"
+    /// Files over about 300 MB: the "large files" rule shows those over 1 GB, the "old files" rule big ones you haven't opened in a year.
+    public static let largeFileThreshold = "+300M"
 
     public static func build(home: String = NSHomeDirectory()) async -> HomeIndex {
         let r = await Shell.run("/usr/bin/find", [

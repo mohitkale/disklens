@@ -403,4 +403,30 @@ enum DemoData {
             MediaItem(origin: .file(dir + "/" + $0), kind: .photo, date: ago(days: 2), bytes: 600_000)
         }
     }
+
+    // MARK: Health (fictional drive and folders)
+
+    static var diskHealth: DiskHealth? {
+        guard !isWelcome else { return nil }
+        return DiskHealth(smartStatus: "Verified", model: "APPLE SSD AP0512Z", percentUsed: 3, availableSpare: 100, spareThreshold: 99,
+                          temperatureC: 36, powerOnHours: 2_140, bytesWritten: 61_000 * gb, bytesRead: 74_000 * gb,
+                          unsafeShutdowns: 12, mediaErrors: 0, criticalWarning: 0)
+    }
+
+    static var externalVolumes: [ExternalVolume] {
+        guard !isWelcome else { return [] }
+        return [ExternalVolume(path: "/Volumes/Backup SSD", name: "Backup SSD", free: 640 * gb, capacity: 1_000 * gb, format: "APFS")]
+    }
+
+    static var archiveItems: [(String, Int64)] {
+        guard !isWelcome else { return [] }
+        return [(p("Movies/2023 Family trip raw footage"), 48 * gb), (p("Documents/Old projects/client-site-2022"), 6 * gb),
+                (p("Downloads/Ubuntu-22.04-desktop.iso"), 4_700 * mb)]
+    }
+
+    static var watchedFolders: [WatchedFolder] {
+        guard !isWelcome else { return [] }
+        return [WatchedFolder(path: p("Downloads"), limitBytes: 20 * gb, lastBytes: 23_400 * mb),
+                WatchedFolder(path: p("Movies/Screen Recordings"), limitBytes: 50 * gb, lastBytes: 12_100 * mb)]
+    }
 }
